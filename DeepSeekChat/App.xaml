@@ -1,0 +1,9 @@
+﻿<Application x:Class="DeepSeekChat.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DeepSeekChat"
+             xmlns:converters="clr-namespace:DeepSeekChat.Converters">
+    <Application.Resources>
+
+    </Application.Resources>
+</Application>
