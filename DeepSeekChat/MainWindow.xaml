@@ -250,11 +250,6 @@
             <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="SelectionBrush">
-                <Setter.Value>
-                    <SolidColorBrush Color="#BB86FC" Opacity="0.3"/>
-                </Setter.Value>
-            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -634,17 +629,23 @@
                     <Button Grid.Column="1" 
                             Content="发送" 
                             Command="{Binding SendCommand}"
+                            VerticalAlignment="Bottom"
                             MinWidth="80"
+                            MaxHeight="40"
+                            MinHeight="40"
                             Margin="10,0"
                             Style="{StaticResource DarkButtonStyle}"
                             Background="{StaticResource PrimaryBrush}"
                             Foreground="White"
-                            BorderThickness="0"/>
+                            BorderThickness="0" Cursor="Hand"/>
 
                     <Button Grid.Column="2" 
+                            VerticalAlignment="Bottom"
                             Content="清空" 
                             Command="{Binding ClearCommand}"
                             MinWidth="60"
+                            MaxHeight="40"
+                            MinHeight="40"
                             Style="{StaticResource DarkButtonStyle}"
                             Background="#D32F2F"
                             Foreground="White"

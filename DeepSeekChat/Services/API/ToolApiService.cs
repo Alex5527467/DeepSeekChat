@@ -55,7 +55,7 @@ namespace DeepSeekChat.Services
             {
                 Messages = conversationHistory,
                 MaxTokens = 5000,
-                Temperature = 0.7,
+                Temperature = 0.3,
                 Tools = tools,
                 ToolChoice = "auto"
             };
