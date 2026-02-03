@@ -740,32 +740,6 @@ namespace DeepSeekChat.Agent
             };
         }
 
-        // 添加获取消息历史的方法
-        public IReadOnlyList<AgentMessage> GetMessageHistory()
-        {
-            return _messageHistory.AsReadOnly();
-        }
-
-        // 获取会话状态
-        public Dictionary<string, object> GetSessionStatus(string sessionId)
-        {
-            if (_sessions.TryGetValue(sessionId, out var session))
-            {
-                return new Dictionary<string, object>
-                {
-                    { "SessionId", session.SessionId },
-                    { "UserId", session.UserId },
-                    { "ProjectType", session.ProjectType.ToString() },
-                    { "TechnologyStack", session.TechnologyStack.ToString() },
-                    { "Complexity", session.Complexity.ToString() },
-                    { "IsComplete", session.IsComplete() },
-                    { "UserInputCount", session.UserInputs.Count },
-                    { "AgentQuestionCount", session.AgentQuestions.Count }
-                };
-            }
-
-            return new Dictionary<string, object> { { "Status", "SessionNotFound" } };
-        }
 
         public string? GetFirstSessionId()
         {

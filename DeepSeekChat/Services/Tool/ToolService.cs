@@ -15,6 +15,7 @@ namespace DeepSeekChat.Services
         private readonly FileSystemService _fileSystemService;
         private readonly CSharpCompilerService _compilerService;
         private readonly CreateTaskService _createTaskService;
+        private readonly HandleUserNeedsService _handleUserNeedsService;
 
         public ToolService(InMemoryMessageBus msgBus)
         {
@@ -22,6 +23,7 @@ namespace DeepSeekChat.Services
             _fileSystemService = new FileSystemService();
             _compilerService = new CSharpCompilerService();
             _createTaskService = new CreateTaskService(msgBus);
+            _handleUserNeedsService = new HandleUserNeedsService(msgBus);
         }
 
         public async Task<object> ExecuteToolAsync(string toolName, string arguments)
@@ -37,6 +39,8 @@ namespace DeepSeekChat.Services
                 "read_file" => await _fileSystemService.ReadFileAsync(arguments).ConfigureAwait(false),
                 "write_file" => await _fileSystemService.WriteFileAsync(arguments).ConfigureAwait(false),
 
+                "get_folder_structure_description" => await _fileSystemService.GetFolderStructureDescription(arguments).ConfigureAwait(false),
+
                 // 添加编译工具
                 "compile_csharp" => await _compilerService.CompileCSharpProgramAsync(arguments).ConfigureAwait(false),
                 "compile_and_execute" => await _compilerService.CompileCSharpProgramAsync(arguments).ConfigureAwait(false),
@@ -44,6 +48,9 @@ namespace DeepSeekChat.Services
 
                 // 分配任务工具
                 "distribute_coding_tasks" => await _createTaskService.DistributeCodingTasksAsync(arguments).ConfigureAwait(false),
+
+
+                "send_to_agent" => await _handleUserNeedsService.HandleUserNeedsAsync(arguments).ConfigureAwait(false),
 
                 _ => throw new NotSupportedException($"工具 '{toolName}' 不支持")
             };

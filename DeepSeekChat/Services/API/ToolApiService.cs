@@ -19,7 +19,8 @@ namespace DeepSeekChat.Services
             FileCreate,
             FileSystem,
             TaskManager,
-            Compile
+            Compile,
+            UserNeedsAnalysis
         }
         private readonly HttpClient _httpClient;
         private const string ApiUrl = "https://api.deepseek.com/chat/completions";
@@ -47,6 +48,9 @@ namespace DeepSeekChat.Services
                     break;
                 case ToolApiType.Compile:
                     tools = GetCompileTools();
+                    break;
+                case ToolApiType.UserNeedsAnalysis:
+                    tools = GetHandleUserNeedsTools();
                     break;
                 default:
                     break;
@@ -615,6 +619,46 @@ namespace DeepSeekChat.Services
                 }
             };
         }
+
+        public List<object> GetHandleUserNeedsTools()
+        {
+            return new List<object>
+    {
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "send_to_agent",
+                description = "路由用户请求：需求分析 -> RequirementAnalysisAgent，代码审查 -> ReviewAgent，其他 -> 返回User并说明原因",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        agent_name = new
+                        {
+                            type = "string",
+                            description = "目标接收方：'RequirementAnalysisAgent'、'ReviewAgent'或'User'",
+                            @enum = new[] {
+                                "RequirementAnalysisAgent",
+                                "ReviewAgent",
+                                "User"
+                            }
+                        },
+                        to_agent_content = new
+                        {
+                            type = "string",
+                            description = "发送给接收方的消息内容"
+                        }
+                    },
+                    required = new[] { "agent_name", "to_agent_content" }
+                }
+            }
+        }
+    };
+        }
+
         public void Dispose()
         {
             _httpClient?.Dispose();

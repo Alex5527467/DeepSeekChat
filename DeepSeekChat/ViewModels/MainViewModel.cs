@@ -358,6 +358,8 @@ namespace DeepSeekChat.ViewModels
             StartAgent("CodingAgent", "编程专家");
             StartAgent("TaskCreateAgent", "任务分配者");
             StartAgent("RequirementAnalysisAgent", "需求分析师");
+            StartAgent("UserIntentAnalysisAgent", "用户目的分析师");
+            StartAgent("ReviewAgent", "代码审查员");
 
         }
 
@@ -408,6 +410,13 @@ namespace DeepSeekChat.ViewModels
 
                     case "RequirementAnalysisAgent":
                         agent = new RequirementAnalysisAgent(_messageBus, _chatService, cancellationTokenSource.Token);
+                        break;
+
+                    case "UserIntentAnalysisAgent":
+                        agent = new UserIntentAnalysisAgent(_messageBus, _toolApiService, _toolService, cancellationTokenSource.Token);
+                        break;
+                    case "ReviewAgent":
+                        agent = new ReviewAgent(_messageBus, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
                         break;
                 }
 
@@ -511,38 +520,57 @@ namespace DeepSeekChat.ViewModels
                 ? _activeAgents["RequirementAnalysisAgent"]
                 : null;
 
-            if (requirementAgent != null && requirementAgent is RequirementAnalysisAgent reqAgent)
+            var userNeedsAnalysisAgent = _activeAgents.ContainsKey("UserIntentAnalysisAgent")
+                ? _activeAgents["UserIntentAnalysisAgent"]
+                : null;
+
+            if (requirementAgent != null && requirementAgent is RequirementAnalysisAgent reqAgent &&
+                userNeedsAnalysisAgent != null && userNeedsAnalysisAgent is UserIntentAnalysisAgent needsAgent)
             {
                 // 检查是否有活跃的需求分析会话
                 string sessionId = reqAgent.GetFirstSessionId();
-
-                var agentMessage = new AgentMessage
-                {
-                    Sender = "User",
-                    Recipient = "RequirementAnalysisAgent",
-                    Content = userMessage,
-                    Type = AgentMessageType.TaskRequest
-                };
-
+                AgentMessage? agentMessage = null;
                 // 如果有活跃会话，添加会话ID到元数据
                 if (!string.IsNullOrEmpty(sessionId))
                 {
+                    agentMessage = new AgentMessage
+                    {
+                        Sender = "User",
+                        Recipient = "RequirementAnalysisAgent",
+                        Content = userMessage,
+                        Type = AgentMessageType.TaskRequest
+                    };
+
                     agentMessage.Metadata = new Dictionary<string, object>
                     {
                         { "SessionId", sessionId },
                     };
                 }
+                else
+                {
+                    agentMessage = new AgentMessage
+                    {
+                        Sender = "User",
+                        Recipient = "UserIntentAnalysisAgent",
+                        Content = userMessage,
+                        Type = AgentMessageType.TaskRequest
+                    };
 
-                try
-                {
-                     await _messageBus.PublishAsync(agentMessage);
                 }
-                catch (Exception ex)
+
+                if (agentMessage != null)
                 {
-                    AddMessageToUI("RequirementAnalysisAgent", $"处理失败: {ex.Message}",
-                        Color.FromRgb(50, 0, 0),
-                        HorizontalAlignment.Left,
-                        Color.FromRgb(255, 102, 102));
+                    try
+                    {
+                        await _messageBus.PublishAsync(agentMessage);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddMessageToUI("RequirementAnalysisAgent", $"处理失败: {ex.Message}",
+                            Color.FromRgb(50, 0, 0),
+                            HorizontalAlignment.Left,
+                            Color.FromRgb(255, 102, 102));
+                    }
                 }
             }
         }

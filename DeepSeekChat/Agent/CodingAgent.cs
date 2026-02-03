@@ -267,7 +267,7 @@ namespace DeepSeekChat.Agent
         private async Task<ToolCallResponse> CodeFileAsync(string content, string readDependFileData, string projectName)
         {
 
-            var folderStructure = GetFolderStructureDescription(ROOT_PATH+ $"\\{projectName}");
+            var folderStructure = _toolService.ExecuteTool("get_folder_structure_description", (ROOT_PATH+ $"\\{projectName}"));
             var conversation = new List<ChatMessage>
             {
                 new ChatMessage
@@ -326,7 +326,7 @@ namespace DeepSeekChat.Agent
 
         private async Task<string> NeededReadOtherDependFileAsync(string msg, string projectName)
         {
-            var folderStructure = GetFolderStructureDescription(ROOT_PATH + $"\\{projectName}");
+            var folderStructure = _toolService.ExecuteTool("get_folder_structure_description", (ROOT_PATH + $"\\{projectName}"));
             var conversation = new List<ChatMessage>
             {
                 new ChatMessage
@@ -375,173 +375,7 @@ namespace DeepSeekChat.Agent
             return readFileData;
         }
 
-        private string GetFolderStructureDescription(string folderPath)
-        {
-            try
-            {
-                // 正确创建 JSON 参数
-                var parameters = new Dictionary<string, object>
-                {
-                    ["folder_path"] = folderPath,
-                    ["include_subdirectories"] = true
-                };
 
-                // 序列化为 JSON
-                string arguments = JsonConvert.SerializeObject(parameters);
-
-                var toolResult = _toolService.ExecuteTool("browse_local_folder", arguments);
-
-                // 转换为BrowseFolderResult对象
-                var browseResult = JsonConvert.DeserializeObject<BrowseFolderResult>(
-                    JsonConvert.SerializeObject(toolResult));
-
-                if (browseResult == null)
-                    return "无法解析文件夹信息";
-
-                // 构建描述
-                var structureBuilder = new StringBuilder();
-                structureBuilder.AppendLine($"当前工作目录: {browseResult.FolderPath}");
-
-                if (!string.IsNullOrEmpty(browseResult.Info))
-                {
-                    structureBuilder.AppendLine($"{browseResult.Info}");
-
-                    return structureBuilder.ToString();
-                }
-
-                //// 如果有错误信息
-                //if (!string.IsNullOrEmpty(browseResult.Error))
-                //{
-                //    structureBuilder.AppendLine($" 错误: {browseResult.Error}");
-                //}
-
-                // 构建树形结构显示
-                structureBuilder.AppendLine("\n文件夹结构:");
-
-                // 获取根目录信息
-                var rootDir = new DirectoryInfo(folderPath);
-
-                // 构建目录树
-                BuildDirectoryTree(structureBuilder, rootDir, "", true, browseResult);
-
-                // 统计信息
-                //structureBuilder.AppendLine($"\n统计:");
-                //structureBuilder.AppendLine($"  - 总文件数: {browseResult.TotalFiles}");
-                //structureBuilder.AppendLine($"  - 总子目录数: {browseResult.TotalSubdirectories}");
-
-                // 如果有备注信息
-                if (!string.IsNullOrEmpty(browseResult.Note))
-                {
-                    structureBuilder.AppendLine($"\n 备注: {browseResult.Note}");
-                }
-
-                return structureBuilder.ToString();
-            }
-            catch (Exception ex)
-            {
-                return $" 获取文件夹结构时出错: {ex.Message}";
-            }
-        }
-
-        // 辅助方法：构建目录树
-        private void BuildDirectoryTree(StringBuilder builder, DirectoryInfo directory,
-            string indent, bool isLast, BrowseFolderResult browseResult)
-        {
-            // 获取相对于根目录的路径
-            string relativePath = GetRelativePath(browseResult.FolderPath, directory.FullName);
-
-            // 如果是根目录，特殊处理
-            if (directory.FullName == browseResult.FolderPath)
-            {
-                builder.AppendLine($"{indent} ./");
-            }
-            else
-            {
-                builder.AppendLine($"{indent}├──  {relativePath}/");
-            }
-
-            // 构建新的缩进
-            string newIndent = indent + (isLast ? "    " : "│   ");
-
-            try
-            {
-                // 获取当前目录下的所有文件
-                var files = directory.GetFiles();
-                if (files.Any())
-                {
-                    // 按文件名排序
-                    var sortedFiles = files.OrderBy(f => f.Name).ToList();
-
-                    for (int i = 0; i < sortedFiles.Count; i++)
-                    {
-                        bool isFileLast = (i == sortedFiles.Count - 1) &&
-                                         (directory.GetDirectories().Length == 0);
-
-                        string fileRelativePath = GetRelativePath(browseResult.FolderPath, sortedFiles[i].FullName);
-
-                        if (isFileLast)
-                        {
-                            builder.AppendLine($"{newIndent}└──  {fileRelativePath}");
-                        }
-                        else
-                        {
-                            builder.AppendLine($"{newIndent}├──  {fileRelativePath}");
-                        }
-                    }
-                }
-
-                // 获取当前目录下的所有子目录并递归处理
-                var subDirectories = directory.GetDirectories();
-                if (subDirectories.Any())
-                {
-                    // 按目录名排序
-                    var sortedDirs = subDirectories.OrderBy(d => d.Name).ToList();
-
-                    for (int i = 0; i < sortedDirs.Count; i++)
-                    {
-                        bool isSubDirLast = i == sortedDirs.Count - 1;
-                        BuildDirectoryTree(builder, sortedDirs[i], newIndent, isSubDirLast, browseResult);
-                    }
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                builder.AppendLine($"{newIndent}└──  无访问权限");
-            }
-            catch (Exception ex)
-            {
-                builder.AppendLine($"{newIndent}└──  错误: {ex.Message}");
-            }
-        }
-
-        // 辅助方法：获取相对路径（使用Path类）
-        private string GetRelativePath(string rootPath, string fullPath)
-        {
-            // 确保根路径以目录分隔符结尾
-            if (!rootPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
-            {
-                rootPath += Path.DirectorySeparatorChar;
-            }
-
-            // 使用Path类获取相对路径
-            try
-            {
-                var rootUri = new Uri(rootPath);
-                var fullUri = new Uri(fullPath);
-                var relativeUri = rootUri.MakeRelativeUri(fullUri);
-                return Uri.UnescapeDataString(relativeUri.ToString())
-                    .Replace('/', Path.DirectorySeparatorChar);
-            }
-            catch
-            {
-                // 如果URI方法失败，使用简单方法
-                if (fullPath.StartsWith(rootPath))
-                {
-                    return fullPath.Substring(rootPath.Length);
-                }
-                return fullPath;
-            }
-        }
 
         private string ProcessReadFileToolCalls(List<ToolCall> toolCalls)
         {
