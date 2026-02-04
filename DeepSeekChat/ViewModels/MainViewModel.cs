@@ -353,13 +353,13 @@ namespace DeepSeekChat.ViewModels
             // 等待UI初始化完成
             await Task.Delay(1000);
 
-
-            StartAgent("DesignAgent", "设计专家");
-            StartAgent("CodingAgent", "编程专家");
-            StartAgent("TaskCreateAgent", "任务分配者");
-            StartAgent("RequirementAnalysisAgent", "需求分析师");
             StartAgent("UserIntentAnalysisAgent", "用户目的分析师");
+            StartAgent("RequirementAnalysisAgent", "需求分析师");
+            StartAgent("DesignAgent", "设计专家");
+            StartAgent("TaskCreateAgent", "任务分配者");
+            StartAgent("CodingAgent", "编程专家");
             StartAgent("ReviewAgent", "代码审查员");
+            StartAgent("ReviewHandleAgent", "代码审查对应者");
 
         }
 
@@ -416,7 +416,10 @@ namespace DeepSeekChat.ViewModels
                         agent = new UserIntentAnalysisAgent(_messageBus, _toolApiService, _toolService, cancellationTokenSource.Token);
                         break;
                     case "ReviewAgent":
-                        agent = new ReviewAgent(_messageBus, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
+                        agent = new ReviewAgent(_messageBus, _chatService, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
+                        break;
+                    case "ReviewHandleAgent":
+                        agent = new ReviewHandleAgent(_messageBus,_chatService, cancellationTokenSource.Token);
                         break;
                 }
 
@@ -520,57 +523,74 @@ namespace DeepSeekChat.ViewModels
                 ? _activeAgents["RequirementAnalysisAgent"]
                 : null;
 
+            var reviewAgent = _activeAgents.ContainsKey("ReviewAgent")
+                ? _activeAgents["ReviewAgent"]
+                : null;
+
             var userNeedsAnalysisAgent = _activeAgents.ContainsKey("UserIntentAnalysisAgent")
                 ? _activeAgents["UserIntentAnalysisAgent"]
                 : null;
 
-            if (requirementAgent != null && requirementAgent is RequirementAnalysisAgent reqAgent &&
-                userNeedsAnalysisAgent != null && userNeedsAnalysisAgent is UserIntentAnalysisAgent needsAgent)
+            AgentMessage? agentMessage = null;
+
+            if (requirementAgent != null && requirementAgent is RequirementAnalysisAgent reqAgent && !string.IsNullOrEmpty(reqAgent.GetFirstSessionId()))
             {
                 // 检查是否有活跃的需求分析会话
                 string sessionId = reqAgent.GetFirstSessionId();
-                AgentMessage? agentMessage = null;
-                // 如果有活跃会话，添加会话ID到元数据
-                if (!string.IsNullOrEmpty(sessionId))
+                agentMessage = new AgentMessage
                 {
-                    agentMessage = new AgentMessage
-                    {
-                        Sender = "User",
-                        Recipient = "RequirementAnalysisAgent",
-                        Content = userMessage,
-                        Type = AgentMessageType.TaskRequest
-                    };
+                    Sender = "User",
+                    Recipient = "RequirementAnalysisAgent",
+                    Content = userMessage,
+                    Type = AgentMessageType.TaskRequest
+                };
 
-                    agentMessage.Metadata = new Dictionary<string, object>
-                    {
-                        { "SessionId", sessionId },
-                    };
+                agentMessage.Metadata = new Dictionary<string, object>
+                {
+                    { "SessionId", sessionId },
+                };
+
+            }
+            else if(reviewAgent != null && reviewAgent is ReviewAgent revAgent && !string.IsNullOrEmpty(revAgent.GetFirstSessionId()))
+            {
+                // 检查是否有活跃的需求分析会话
+                string sessionId = revAgent.GetFirstSessionId();
+                agentMessage = new AgentMessage
+                {
+                    Sender = "User",
+                    Recipient = "ReviewAgent",
+                    Content = userMessage,
+                    Type = AgentMessageType.TaskRequest
+                };
+
+                agentMessage.Metadata = new Dictionary<string, object>
+                {
+                    { "SessionId", sessionId },
+                };
+            }
+            else if (userNeedsAnalysisAgent != null && userNeedsAnalysisAgent is UserIntentAnalysisAgent needsAgent)
+            {
+                agentMessage = new AgentMessage
+                {
+                    Sender = "User",
+                    Recipient = "UserIntentAnalysisAgent",
+                    Content = userMessage,
+                    Type = AgentMessageType.TaskRequest
+                };
+            }
+
+            if (agentMessage != null)
+            {
+                try
+                {
+                    await _messageBus.PublishAsync(agentMessage);
                 }
-                else
+                catch (Exception ex)
                 {
-                    agentMessage = new AgentMessage
-                    {
-                        Sender = "User",
-                        Recipient = "UserIntentAnalysisAgent",
-                        Content = userMessage,
-                        Type = AgentMessageType.TaskRequest
-                    };
-
-                }
-
-                if (agentMessage != null)
-                {
-                    try
-                    {
-                        await _messageBus.PublishAsync(agentMessage);
-                    }
-                    catch (Exception ex)
-                    {
-                        AddMessageToUI("RequirementAnalysisAgent", $"处理失败: {ex.Message}",
-                            Color.FromRgb(50, 0, 0),
-                            HorizontalAlignment.Left,
-                            Color.FromRgb(255, 102, 102));
-                    }
+                    AddMessageToUI("RequirementAnalysisAgent", $"处理失败: {ex.Message}",
+                        Color.FromRgb(50, 0, 0),
+                        HorizontalAlignment.Left,
+                        Color.FromRgb(255, 102, 102));
                 }
             }
         }

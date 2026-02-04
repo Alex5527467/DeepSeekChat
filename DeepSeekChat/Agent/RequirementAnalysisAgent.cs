@@ -243,7 +243,7 @@ namespace DeepSeekChat.Agent
             if (!string.IsNullOrEmpty(session.OriginalRequirement))
             {
                 sb.AppendLine($"\n原始需求:");
-                sb.AppendLine($"  \"{TruncateText(session.OriginalRequirement, 200)}\"");
+                sb.AppendLine($"  \"{Utils.Utils.TruncateText(session.OriginalRequirement, 200)}\"");
             }
 
             // 对话历史
@@ -294,7 +294,7 @@ namespace DeepSeekChat.Agent
                 string suffix = interaction.IsClarifyingQuestion ? " [澄清问题]" : "";
 
                 sb.AppendLine($"\n[{interaction.Timestamp:HH:mm:ss}] {interaction.Role}:");
-                sb.AppendLine($"  {prefix}{TruncateText(interaction.Content, 150)}{suffix}");
+                sb.AppendLine($"  {prefix}{Utils.Utils.TruncateText(interaction.Content, 150)}{suffix}");
 
                 // 如果是原始需求后的对话，显示序号
                 if (!interaction.IsOriginalRequirement && i < maxDisplayCount)
@@ -339,14 +339,6 @@ namespace DeepSeekChat.Agent
             return sb.ToString();
         }
 
-        // 辅助方法：截断文本
-        private string TruncateText(string text, int maxLength)
-        {
-            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-                return text;
-
-            return text.Substring(0, maxLength) + "...";
-        }
         private async Task UpdateRequirementSession(RequirementAnalysisSession session, string userInput, bool isOriginalRequirement = false)
         {
             // 构建包含原始需求的完整上下文
@@ -790,15 +782,6 @@ namespace DeepSeekChat.Agent
         }
     }
 
-    // 输入记录
-    public class RequirementInput
-    {
-        public DateTime Timestamp { get; set; }
-        public string Input { get; set; }
-        public bool IsClarifyingQuestion { get; set; }
-        public bool IsOriginalRequirement { get; set; }
-        public Dictionary<string, object> SourceMetadata { get; set; } = new Dictionary<string, object>();
-    }
 
     // 需求分析结果类
     public class RequirementAnalysisResult
