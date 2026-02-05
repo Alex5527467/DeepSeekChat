@@ -17,6 +17,7 @@ namespace DeepSeekChat.Services
         {
             FileRead,
             FileCreate,
+            FileWrite,
             FileSystem,
             TaskManager,
             Compile,
@@ -42,6 +43,9 @@ namespace DeepSeekChat.Services
                     break;
                 case ToolApiType.FileCreate:
                     tools = GetFileCreateTools();
+                    break;
+                case ToolApiType.FileWrite:
+                    tools = GetFileWriteTools();
                     break;
                 case ToolApiType.TaskManager:
                     tools = GetTaskCreationTools();
@@ -400,6 +404,51 @@ namespace DeepSeekChat.Services
             };
         }
 
+        private List<object> GetFileWriteTools()
+        {
+            return new List<object>
+            {
+                new
+                {
+                    type = "function",
+                    function = new
+                    {
+                        name = "write_file",
+                        description = "写入文件内容",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                file_path = new
+                                {
+                                    type = "string",
+                                    description = "要写入的文件完整路径，如：C:\\Users\\Username\\Documents\\file_to_write.txt"
+                                },
+                                content = new
+                                {
+                                    type = "string",
+                                    description = "要写入的文件内容"
+                                },
+                                encoding = new
+                                {
+                                    type = "string",
+                                    description = "文件编码格式，支持：UTF-8、ASCII、Unicode、UTF-32、UTF-7、BigEndianUnicode、Default，默认为UTF-8"
+                                },
+                                mode = new
+                                {
+                                    type = "string",
+                                    description = "写入模式：create=仅创建新文件（文件存在则失败）、overwrite=覆盖文件（文件存在则覆盖）、append=在文件末尾追加内容，默认为create",
+                                    @enum = new[] { "create", "overwrite", "append" }
+                                }
+                            },
+                            required = new[] { "file_path", "content" ,"mode"}
+                        }
+                    }
+                }
+            };
+        }
+        
         private List<object> GetCompileTools()
         {
             return new List<object>

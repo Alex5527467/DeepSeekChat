@@ -429,10 +429,14 @@ namespace DeepSeekChat.Services
                 string filePath = args["file_path"];
                 string content = args.ContainsKey("content") ? args["content"] : string.Empty;
                 string encodingName = args.ContainsKey("encoding") ? args["encoding"] : "UTF-8";
-                bool append = args.ContainsKey("append") &&
-                             bool.TryParse(args["append"], out bool ap) && ap;
 
-                return await WriteFileInternalAsync(filePath, content, encodingName, append).ConfigureAwait(false);
+                // 修改：使用 mode 参数替代 append
+                // create: 仅创建新文件（文件存在则失败）
+                // overwrite: 覆盖文件（文件存在则覆盖）
+                // append: 追加到文件末尾
+                string mode = args.ContainsKey("mode") ? args["mode"].ToLower() : "create";
+
+                return await WriteFileInternalAsync(filePath, content, encodingName, mode).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -443,6 +447,7 @@ namespace DeepSeekChat.Services
                 };
             }
         }
+
 
         // 同步方法用于兼容性
         public FileOperationResult CreateFile(string arguments)
@@ -687,17 +692,17 @@ namespace DeepSeekChat.Services
             }
         }
 
-        private async Task<FileOperationResult> WriteFileInternalAsync(string filePath, string content, string encodingName, bool append)
+        private async Task<FileOperationResult> WriteFileInternalAsync(string filePath, string content, string encodingName, string mode)
         {
             try
             {
-                // 检查文件是否存在（如果是追加模式，允许文件不存在）
-                if (!append && File.Exists(filePath))
+                // 检查模式
+                if (mode == "create" && File.Exists(filePath))
                 {
                     return new FileOperationResult
                     {
                         Success = false,
-                        Error = $"文件已存在: {filePath}，如需追加请设置 append=true"
+                        Error = $"文件已存在: {filePath}，如需覆盖请设置 mode=overwrite"
                     };
                 }
 
@@ -719,22 +724,25 @@ namespace DeepSeekChat.Services
                     };
                 }
 
-                // 写入文件
-                if (append && File.Exists(filePath))
+                // 根据模式写入文件
+                switch (mode)
                 {
-                    await File.AppendAllTextAsync(filePath, content, encoding).ConfigureAwait(false);
-                }
-                else
-                {
-                    await File.WriteAllTextAsync(filePath, content, encoding).ConfigureAwait(false);
+                    case "append":
+                        await File.AppendAllTextAsync(filePath, content, encoding).ConfigureAwait(false);
+                        break;
+
+                    case "overwrite":
+                    case "create":
+                    default:
+                        await File.WriteAllTextAsync(filePath, content, encoding).ConfigureAwait(false);
+                        break;
                 }
 
                 var fileInfo = new FileInfo(filePath);
-                string mode = append ? "追加" : "写入";
                 return new FileOperationResult
                 {
                     Success = true,
-                    Message = $"文件{mode}成功: {filePath}",
+                    Message = $"文件写入成功 ({mode}模式): {filePath}",
                     FilePath = filePath,
                     FileSize = fileInfo.Length,
                     CreatedTime = fileInfo.CreationTime,
@@ -774,7 +782,6 @@ namespace DeepSeekChat.Services
                 };
             }
         }
-
         public async Task<string> GetFolderStructureDescription(string folderPath)
         {
             try

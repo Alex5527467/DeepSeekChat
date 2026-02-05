@@ -19,6 +19,8 @@
         <converters:ExpandCollapseToolTipConverter x:Key="ExpandCollapseToolTipConverter" />
         <converters:IntToMarginConverter x:Key="IntToMarginConverter"/>
 
+        <converters:DebugConverter x:Key="DebugConverter"/>
+
         <!-- 颜色资源 -->
         <SolidColorBrush x:Key="PrimaryBrush" Color="#BB86FC"/>
         <SolidColorBrush x:Key="SecondaryBrush" Color="#03DAC6"/>
@@ -31,33 +33,87 @@
         <SolidColorBrush x:Key="TreeViewBackground" Color="#1A1A1A"/>
         <SolidColorBrush x:Key="SelectedItemBackground" Color="#3D3D3D"/>
         <SolidColorBrush x:Key="PrimaryLightBrush" Color="#4D00A4FF"/>
+        <SolidColorBrush x:Key="CardHoverBackground" Color="#3A3A3A"/>
 
-        <Style x:Key="ExpandCollapseToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Width" Value="16"/>
-            <Setter Property="Height" Value="16"/>
+        <!-- 右键菜单样式 -->
+        <Style x:Key="ContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="TextBlock.Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+        </Style>
+
+        <Style x:Key="DarkMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border Background="Transparent"
-                                Width="16" Height="16">
-                            <TextBlock x:Name="ExpanderIcon"
-                                       Text="&#xE76C;"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="10"
-                                       Foreground="{StaticResource TextSecondary}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid Background="Transparent">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 左侧图标区域 -->
+                                <Border x:Name="IconBorder"
+                                Grid.Column="0"
+                                Background="black"
+                                Width="32"
+                                Height="32">
+                                    <ContentPresenter x:Name="Icon"
+                                              Content="{TemplateBinding Icon}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- 右侧文本区域 -->
+                                <ContentPresenter x:Name="HeaderPresenter"
+                                          Grid.Column="1"
+                                          Content="{TemplateBinding Header}"
+                                          Margin="8,0,16,0"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
+
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="ExpanderIcon" Property="Text" Value="&#xE76D;"/>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource HoverColor}"/>
+                                <!-- 鼠标悬停时左侧图标区域也要变色 -->
+                                <Setter TargetName="IconBorder" Property="Background" Value="{StaticResource HoverColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource HoverColor}"/>
+                                <Setter TargetName="IconBorder" Property="Background" Value="{StaticResource HoverColor}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Separator 样式 -->
+        <Style x:Key="MenuSeparatorStyle" TargetType="Separator">
+            <Setter Property="Background" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Margin" Value="8,2"/>
+            <Setter Property="Height" Value="1"/>
+        </Style>
+
 
         <!-- 树状视图数据模板 -->
         <HierarchicalDataTemplate x:Key="FolderTemplate" 
@@ -171,6 +227,17 @@
                             <Trigger Property="IsMouseOver" Value="true">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverColor}"/>
                             </Trigger>
+
+                            <!-- 右键选中 --><!--
+                            <EventTrigger RoutedEvent="PreviewMouseRightButtonDown">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="IsSelected">
+                                            <DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True"/>
+                                        </BooleanAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>-->
 
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -482,14 +549,71 @@
 
                 <!-- 文件树状视图 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto">
+              HorizontalScrollBarVisibility="Auto">
                     <TreeView x:Name="ProjectTreeView"
-                              ItemsSource="{Binding ProjectFiles}"
-                              ItemContainerStyle="{StaticResource TreeViewItemStyle}"
-                              ItemTemplateSelector="{StaticResource FileSystemTemplateSelector}"
-                              Background="Transparent"
-                              BorderThickness="0"
-                              Padding="4">
+              ItemsSource="{Binding ProjectFiles}"
+              ItemContainerStyle="{StaticResource TreeViewItemStyle}"
+              ItemTemplateSelector="{StaticResource FileSystemTemplateSelector}"
+              Background="Transparent"
+              BorderThickness="0"
+              Padding="4"
+              ContextMenuOpening="TreeView_ContextMenuOpening">
+                        <TreeView.ContextMenu>
+                            <ContextMenu Background="{StaticResource CardBackground}"
+                                         BorderBrush="{StaticResource BorderColor}"
+                                         BorderThickness="1"
+                                         Padding="0" x:Name="TreeViewContextMenu">
+
+                                <MenuItem Header="打开文件" 
+                  Command="{Binding Path=PlacementTarget.Tag.OpenFileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                   CommandParameter="{Binding Path=PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  Style="{StaticResource DarkMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="&#xE8A7;" 
+                           FontFamily="Segoe MDL2 Assets" 
+                           FontSize="12"
+                           Foreground="{StaticResource PrimaryBrush}"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+
+                                <!-- 复制文件路径 -->
+                                <MenuItem Header="复制名称" 
+                  Command="{Binding Path=PlacementTarget.Tag.CopyFilePathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                   CommandParameter="{Binding Path=PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  Style="{StaticResource DarkMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="&#xE8C8;" 
+                           FontFamily="Segoe MDL2 Assets" 
+                           FontSize="12"
+                           Foreground="{StaticResource PrimaryBrush}"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+
+                                <!-- 分隔线 -->
+                                <Separator>
+                                    <Separator.Style>
+                                        <Style TargetType="Separator">
+                                            <Setter Property="Background" Value="{StaticResource BorderColor}"/>
+                                            <Setter Property="Margin" Value="8,2"/>
+                                            <Setter Property="Height" Value="1"/>
+                                        </Style>
+                                    </Separator.Style>
+                                </Separator>
+
+                                <!-- 在文件夹中显示 -->
+                                <MenuItem Header="在文件夹中显示" 
+                  Command="{Binding Path=PlacementTarget.Tag.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding Path=PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  Style="{StaticResource DarkMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="&#xEC50;" 
+                           FontFamily="Segoe MDL2 Assets" 
+                           FontSize="12"
+                           Foreground="{StaticResource PrimaryBrush}"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </TreeView.ContextMenu>
                         <TreeView.Resources>
                             <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeViewItemStyle}"/>
                         </TreeView.Resources>

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -107,6 +108,12 @@ namespace DeepSeekChat.ViewModels
 
         public ICommand TreeViewItemExpandedCommand { get; }
 
+        public ICommand OpenFileCommand { get; }
+
+        public ICommand CopyFilePathCommand { get; }
+
+        public ICommand ShowInExplorerCommand { get; }
+
         public MainViewModel(
             ChatService chatService,
             ToolService toolService,
@@ -162,6 +169,12 @@ namespace DeepSeekChat.ViewModels
             TreeViewItemExpandedCommand = new RelayCommand<FileSystemItem>(OnTreeViewItemExpanded);
 
             OpenSettingsCommand = new RelayCommand(OpenSettings);
+
+            OpenFileCommand = new RelayCommand<FileSystemItem>(OpenFile);
+
+            CopyFilePathCommand = new RelayCommand<FileSystemItem>(CopyFilePath);
+
+            ShowInExplorerCommand = new RelayCommand<FileSystemItem>(ShowInExplorer);
 
             InitializeAutoStartAgents();
 
@@ -303,7 +316,81 @@ namespace DeepSeekChat.ViewModels
             }
         }
 
+        public void OpenFile(FileSystemItem item)
+        {
+            if (item == null || item.Type == FileSystemItemType.Directory) return;
 
+            try
+            {
+                var fullPath = item.FullPath;
+                if (File.Exists(fullPath))
+                {
+                    // 使用系统默认程序打开文件
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = fullPath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // 处理异常，可以显示提示信息
+                Debug.WriteLine($"打开文件失败: {ex.Message}");
+            }
+        }
+
+        public void CopyFilePath(FileSystemItem item)
+        {
+            if (item == null) return;
+
+            try
+            {
+                string textToCopy;
+
+                if (item.IsDirectory)
+                {
+                    // 如果是文件夹/路径，拷贝最后一个节点名
+                    textToCopy = Path.GetFileName(item.FullPath.TrimEnd(Path.DirectorySeparatorChar));
+                }
+                else
+                {
+                    // 如果是文件，拷贝文件名（包含扩展名）
+                    textToCopy = Path.GetFileName(item.FullPath);
+                }
+
+                // 如果获取到的名称为空（比如根目录的情况），则使用完整路径
+                if (string.IsNullOrEmpty(textToCopy))
+                {
+                    textToCopy = item.FullPath;
+                }
+
+                Clipboard.SetText(textToCopy);
+
+                // 可以添加一个短暂的提示消息
+                // 例如：ShowToastMessage($"已复制: {textToCopy}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"复制路径失败: {ex.Message}");
+            }
+        }
+
+        public void ShowInExplorer(FileSystemItem item)
+        {
+            if (item == null) return;
+
+            try
+            {
+                var fullPath = item.FullPath;
+                var argument = "/select, \"" + fullPath + "\"";
+                Process.Start("explorer.exe", argument);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"在资源管理器中显示失败: {ex.Message}");
+            }
+        }
         private void OpenSettings()
         {
             try
@@ -419,7 +506,7 @@ namespace DeepSeekChat.ViewModels
                         agent = new ReviewAgent(_messageBus, _chatService, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
                         break;
                     case "ReviewHandleAgent":
-                        agent = new ReviewHandleAgent(_messageBus,_chatService, cancellationTokenSource.Token);
+                        agent = new ReviewHandleAgent(_messageBus, _chatService, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
                         break;
                 }
 

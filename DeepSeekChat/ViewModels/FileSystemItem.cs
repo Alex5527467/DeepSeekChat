@@ -86,12 +86,12 @@ namespace DeepSeekChat.ViewModels
             {
                 return Type switch
                 {
-                    FileSystemItemType.Directory => IsExpanded ? "\uE76D" : "\uE76C",
-                    FileSystemItemType.CSharpFile => "\uE7C3",
-                    FileSystemItemType.XamlFile => "\uE9A4",
-                    FileSystemItemType.ImageFile => "\uE91B",
-                    FileSystemItemType.TextFile => "\uE8A5",
-                    _ => "\uE7C3"
+                    FileSystemItemType.Directory => IsExpanded ? "\uE019" : "\uE017",
+                    FileSystemItemType.CSharpFile => "\uE160",
+                    FileSystemItemType.XamlFile => "\uE160",
+                    FileSystemItemType.ImageFile => "\uE160",
+                    FileSystemItemType.TextFile => "\uE160",
+                    _ => "\uE160"
                 };
             }
         }

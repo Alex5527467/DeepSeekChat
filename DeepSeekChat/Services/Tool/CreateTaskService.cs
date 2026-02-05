@@ -33,11 +33,7 @@ namespace DeepSeekChat.Services
                         {
                             // 属性名不区分大小写
                             ContractResolver = new CamelCasePropertyNamesContractResolver(),
-                            // 或者使用 DefaultContractResolver 并设置命名策略
-                            // ContractResolver = new DefaultContractResolver
-                            // {
-                            //     NamingStrategy = new CamelCaseNamingStrategy()
-                            // },
+
                             // 忽略大小写
                             MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
                             // 如果需要忽略空值

@@ -243,7 +243,7 @@ namespace DeepSeekChat.Agent
 
                 var agentMessage = new AgentMessage
                 {
-                    Sender = "RequirementAnalysisAgent",
+                    Sender = "ReviewAgent",
                     Recipient = "User",
                     Content = nextQuestion,
                     Type = AgentMessageType.TaskResponse
