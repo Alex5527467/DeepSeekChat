@@ -1,0 +1,24 @@
+﻿{
+  "tools": [
+    {
+      "name": "JsonFormatter",
+      "path": ".\\Configs\\Tools\\JsonFormatter\\JsonFormatter.exe",
+      "description": "将json文件格式化保存"
+    },
+    {
+      "name": "ShiftJisToUtf8Converter",
+      "path": ".\\Configs\\Tools\\ShiftJisToUtf8Converter\\ShiftJisToUtf8Converter.exe",
+      "description": "批量转换文件编码从SHIFT-JIS到UTF8，正确处理编码932注册问题"
+    },
+    {
+      "name": "EmailSender",
+      "path": ".\\Configs\\Tools\\EmailSender\\EmailSender.exe",
+      "description": "邮件发送工具"
+    },
+    {
+      "name": "ScreenshotTool",
+      "path": ".\\Configs\\Tools\\ScreenshotTool\\ScreenshotTool.exe",
+      "description": "截图工具，支持全屏截图、区域截图、窗口截图，可保存为多种格式（PNG、JPG、BMP），已修复200%缩放比例下的截图问题（四次修复）"
+    }
+  ]
+}
