@@ -11,11 +11,71 @@ namespace DeepSeekChat.Services
 {
     public class FileSystemService
     {
-        public async Task<BrowseFolderResult> BrowseLocalFolderAsync(string arguments)
+        public async Task<string> GetFolderStructureDescription(Dictionary<string, object> args)
         {
             try
             {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, object>>(arguments);
+                var toolResult = await BrowseLocalFolderAsync(args);
+
+                // 转换为BrowseFolderResult对象
+                var browseResult = JsonConvert.DeserializeObject<BrowseFolderResult>(
+                    JsonConvert.SerializeObject(toolResult));
+
+                if (browseResult == null)
+                    return "无法解析文件夹信息";
+
+                // 构建描述
+                var structureBuilder = new StringBuilder();
+                structureBuilder.AppendLine($"当前工作目录: {browseResult.FolderPath}");
+
+                if (!string.IsNullOrEmpty(browseResult.Info))
+                {
+                    structureBuilder.AppendLine($"{browseResult.Info}");
+                    return structureBuilder.ToString();
+                }
+
+                // 构建树形结构显示
+                structureBuilder.AppendLine("\n文件夹结构:");
+
+                // 获取根目录信息
+                var rootDir = new DirectoryInfo(args["folder_path"].ToString());
+
+                // 获取排除规则
+                List<string> excludePaths = null;
+                if (args.ContainsKey("exclude_paths"))
+                {
+                    try
+                    {
+                        excludePaths = JsonConvert.DeserializeObject<List<string>>(
+                            args["exclude_paths"].ToString());
+                    }
+                    catch
+                    {
+                        // 如果解析失败，忽略排除参数
+                    }
+                }
+
+                // 构建目录树（传入排除规则）
+                BuildDirectoryTree(structureBuilder, rootDir, "", true, browseResult, excludePaths);
+
+                // 如果有备注信息
+                if (!string.IsNullOrEmpty(browseResult.Note))
+                {
+                    structureBuilder.AppendLine($"\n备注: {browseResult.Note}");
+                }
+
+                return structureBuilder.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"获取文件夹结构时出错: {ex.Message}";
+            }
+        }
+
+        public async Task<BrowseFolderResult> BrowseLocalFolderAsync(Dictionary<string, object> args)
+        {
+            try
+            {
                 if (args == null || !args.ContainsKey("folder_path"))
                 {
                     return new BrowseFolderResult
@@ -27,6 +87,7 @@ namespace DeepSeekChat.Services
                 string folderPath = args["folder_path"].ToString();
                 bool includeSubdirectories = false;
                 string[] filterExtensions = null;
+                List<string> excludePaths = null;
 
                 if (args.ContainsKey("include_subdirectories"))
                 {
@@ -47,7 +108,20 @@ namespace DeepSeekChat.Services
                     }
                 }
 
-                return await BrowseLocalFolderInternalAsync(folderPath, includeSubdirectories, filterExtensions).ConfigureAwait(false);
+                if (args.ContainsKey("exclude_paths"))
+                {
+                    try
+                    {
+                        excludePaths = JsonConvert.DeserializeObject<List<string>>(
+                            args["exclude_paths"].ToString());
+                    }
+                    catch
+                    {
+                        // 如果解析失败，忽略排除参数
+                    }
+                }
+
+                return await BrowseLocalFolderInternalAsync(folderPath, includeSubdirectories, filterExtensions, excludePaths).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -58,44 +132,10 @@ namespace DeepSeekChat.Services
             }
         }
 
-        public async Task<FolderInfoResult> GetFolderInfoAsync(string arguments)
-        {
-            try
-            {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
-                if (args == null || !args.ContainsKey("folder_path"))
-                {
-                    return new FolderInfoResult
-                    {
-                        Error = "缺少必要参数 folder_path"
-                    };
-                }
-
-                return await GetFolderInfoInternalAsync(args["folder_path"]).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return new FolderInfoResult
-                {
-                    Error = $"参数解析失败: {ex.Message}"
-                };
-            }
-        }
-
-        // 同步方法用于兼容性
-        public BrowseFolderResult BrowseLocalFolder(string arguments)
-        {
-            return BrowseLocalFolderAsync(arguments).GetAwaiter().GetResult();
-        }
-
-        public FolderInfoResult GetFolderInfo(string arguments)
-        {
-            return GetFolderInfoAsync(arguments).GetAwaiter().GetResult();
-        }
-
         private async Task<BrowseFolderResult> BrowseLocalFolderInternalAsync(string folderPath,
             bool includeSubdirectories = false,
-            string[] filterExtensions = null)
+            string[] filterExtensions = null,
+            List<string> excludePaths = null)
         {
             var result = new BrowseFolderResult
             {
@@ -116,27 +156,42 @@ namespace DeepSeekChat.Services
                     ? SearchOption.AllDirectories
                     : SearchOption.TopDirectoryOnly;
 
-                // 获取文件列表
-                var fileEntries = Directory.GetFiles(folderPath, "*.*", searchOption);
+                // 获取所有文件和目录
+                var allFiles = Directory.GetFiles(folderPath, "*.*", searchOption);
+                var allDirectories = Directory.GetDirectories(folderPath, "*", searchOption);
+
+                // 应用排除规则
+                if (excludePaths != null && excludePaths.Count > 0)
+                {
+                    // 规范化排除路径
+                    var normalizedExcludePaths = excludePaths
+                        .Select(p => Path.GetFullPath(Path.Combine(folderPath, p)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                        .ToList();
+
+                    // 过滤文件
+                    allFiles = allFiles.Where(filePath =>
+                        !ShouldExcludePath(filePath, normalizedExcludePaths)).ToArray();
+
+                    // 过滤目录
+                    allDirectories = allDirectories.Where(dirPath =>
+                        !ShouldExcludePath(dirPath, normalizedExcludePaths)).ToArray();
+                }
 
                 // 应用文件扩展名过滤
                 if (filterExtensions != null && filterExtensions.Length > 0)
                 {
-                    fileEntries = fileEntries.Where(file =>
+                    allFiles = allFiles.Where(file =>
                         filterExtensions.Any(ext =>
                             file.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
                         .ToArray();
                 }
 
-                // 获取目录列表
-                var dirEntries = Directory.GetDirectories(folderPath, "*", searchOption);
-
-                result.TotalFiles = fileEntries.Length;
-                result.TotalSubdirectories = dirEntries.Length;
+                result.TotalFiles = allFiles.Length;
+                result.TotalSubdirectories = allDirectories.Length;
 
                 // 处理文件信息（限制数量防止数据过大）
                 int maxFiles = 50;
-                foreach (var filePath in fileEntries.Take(maxFiles))
+                foreach (var filePath in allFiles.Take(maxFiles))
                 {
                     try
                     {
@@ -161,7 +216,7 @@ namespace DeepSeekChat.Services
 
                 // 处理目录信息
                 int maxDirs = 20;
-                foreach (var dirPath in dirEntries.Take(maxDirs))
+                foreach (var dirPath in allDirectories.Take(maxDirs))
                 {
                     try
                     {
@@ -181,10 +236,10 @@ namespace DeepSeekChat.Services
                     }
                 }
 
-                if (fileEntries.Length > maxFiles || dirEntries.Length > maxDirs)
+                if (allFiles.Length > maxFiles || allDirectories.Length > maxDirs)
                 {
                     result.Note = $"显示前 {maxFiles} 个文件和前 {maxDirs} 个目录，" +
-                                 $"共 {fileEntries.Length} 个文件，{dirEntries.Length} 个目录";
+                                 $"共 {allFiles.Length} 个文件，{allDirectories.Length} 个目录";
                 }
 
                 return result;
@@ -205,6 +260,125 @@ namespace DeepSeekChat.Services
                 return result;
             }
         }
+
+        // 辅助方法：判断路径是否应该被排除
+        private bool ShouldExcludePath(string path, List<string> excludePaths)
+        {
+            var normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var pathParts = normalizedPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            foreach (var excludePath in excludePaths)
+            {
+                // 情况1：如果排除项是完整路径
+                if (normalizedPath.Equals(excludePath, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                // 情况2：如果排除项是文件夹名，检查路径的各个部分
+                if (!excludePath.Contains(Path.DirectorySeparatorChar) &&
+                    !excludePath.Contains(Path.AltDirectorySeparatorChar))
+                {
+                    // 检查路径的任何部分是否匹配排除的文件夹名
+                    if (pathParts.Any(part => part.Equals(excludePath, StringComparison.OrdinalIgnoreCase)))
+                        return true;
+
+                    // 或者检查路径是否以排除的文件夹名结尾
+                    if (normalizedPath.EndsWith(Path.DirectorySeparatorChar + excludePath, StringComparison.OrdinalIgnoreCase) ||
+                        normalizedPath.EndsWith(Path.AltDirectorySeparatorChar + excludePath, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                else
+                {
+                    // 情况3：如果排除项是相对路径，检查是否作为子路径
+                    if (normalizedPath.StartsWith(excludePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                        normalizedPath.StartsWith(excludePath + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        // 修改BuildDirectoryTree方法，添加排除规则参数
+        private void BuildDirectoryTree(StringBuilder builder, DirectoryInfo directory,
+            string indent, bool isLast, BrowseFolderResult browseResult, List<string> excludePaths = null)
+        {
+            // 检查当前目录是否应该被排除
+            if (excludePaths != null && ShouldExcludePath(directory.FullName, excludePaths))
+            {
+                return;
+            }
+
+            // 添加当前目录标记
+            builder.Append(indent);
+
+            if (isLast)
+            {
+                builder.Append("└── ");
+                indent += "    ";
+            }
+            else
+            {
+                builder.Append("├── ");
+                indent += "│   ";
+            }
+
+            builder.AppendLine($"[{directory.Name}]");
+
+            try
+            {
+                // 获取并添加文件
+                var files = directory.GetFiles();
+                var matchedFiles = browseResult.Files
+                    .Where(f => Path.GetDirectoryName(f.FullPath) == directory.FullName)
+                    .ToList();
+
+                for (int i = 0; i < matchedFiles.Count; i++)
+                {
+                    var file = matchedFiles[i];
+                    bool isLastFile = i == matchedFiles.Count - 1;
+
+                    builder.Append(indent);
+                    builder.Append(isLastFile ? "└── " : "├── ");
+                    builder.AppendLine($"{file.Name} ({file.SizeReadable})");
+                }
+
+                // 递归处理子目录
+                var subDirs = directory.GetDirectories();
+                for (int i = 0; i < subDirs.Length; i++)
+                {
+                    bool isLastDir = i == subDirs.Length - 1;
+                    BuildDirectoryTree(builder, subDirs[i], indent, isLastDir, browseResult, excludePaths);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                builder.AppendLine($"{indent}[无权限访问]");
+            }
+        }
+
+        public async Task<FolderInfoResult> GetFolderInfoAsync(Dictionary<string, object> args)
+        {
+            try
+            {
+                if (args == null || !args.ContainsKey("folder_path"))
+                {
+                    return new FolderInfoResult
+                    {
+                        Error = "缺少必要参数 folder_path"
+                    };
+                }
+
+                return await GetFolderInfoInternalAsync(args["folder_path"].ToString()).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return new FolderInfoResult
+                {
+                    Error = $"参数解析失败: {ex.Message}"
+                };
+            }
+        }
+
 
         private async Task<FolderInfoResult> GetFolderInfoInternalAsync(string folderPath)
         {
@@ -314,173 +488,35 @@ namespace DeepSeekChat.Services
         /// <summary>
         /// 创建新文件
         /// </summary>
-        public async Task<FileOperationResult> CreateFileAsync(string arguments)
+        public async Task<string> CreateFileAsync(Dictionary<string, object> args)
         {
             try
             {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
                 if (args == null || !args.ContainsKey("file_path"))
                 {
-                    return new FileOperationResult
-                    {
-                        Success = false,
-                        Error = "缺少必要参数 file_path"
-                    };
+                    return "缺少必要参数 file_path";
                 }
 
-                string filePath = args["file_path"];
-                string content = args.ContainsKey("content") ? args["content"] : string.Empty;
+                string filePath = args["file_path"].ToString();
+                string content = args.ContainsKey("content") ? args["content"].ToString() : string.Empty;
                 bool overwrite = args.ContainsKey("overwrite") &&
-                                bool.TryParse(args["overwrite"], out bool ov) && ov;
+                                bool.TryParse(args["overwrite"].ToString(), out bool ov) && ov;
 
                 return await CreateFileInternalAsync(filePath, content, overwrite).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"参数解析失败: {ex.Message}"
-                };
+                return $"参数解析失败: {ex.Message}";
             }
         }
 
-        /// <summary>
-        /// 删除文件
-        /// </summary>
-        public async Task<FileOperationResult> DeleteFileAsync(string arguments)
-        {
-            try
-            {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
-                if (args == null || !args.ContainsKey("file_path"))
-                {
-                    return new FileOperationResult
-                    {
-                        Success = false,
-                        Error = "缺少必要参数 file_path"
-                    };
-                }
-
-                string filePath = args["file_path"];
-                return await DeleteFileInternalAsync(filePath).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"参数解析失败: {ex.Message}"
-                };
-            }
-        }
-
-        /// <summary>
-        /// 读取文件内容
-        /// </summary>
-        public async Task<FileReadResult> ReadFileAsync(string arguments)
-        {
-            try
-            {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
-                if (args == null || !args.ContainsKey("file_path"))
-                {
-                    return new FileReadResult
-                    {
-                        Success = false,
-                        Error = "缺少必要参数 file_path"
-                    };
-                }
-
-                string filePath = args["file_path"];
-                string encodingName = args.ContainsKey("encoding") ? args["encoding"] : "UTF-8";
-                long maxSize = args.ContainsKey("max_size_bytes") &&
-                              long.TryParse(args["max_size_bytes"], out long max) ? max : 10 * 1024 * 1024; // 默认10MB
-
-                return await ReadFileInternalAsync(filePath, encodingName, maxSize).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return new FileReadResult
-                {
-                    Success = false,
-                    Error = $"参数解析失败: {ex.Message}"
-                };
-            }
-        }
-
-        /// <summary>
-        /// 写入文件内容
-        /// </summary>
-        public async Task<FileOperationResult> WriteFileAsync(string arguments)
-        {
-            try
-            {
-                var args = JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
-                if (args == null || !args.ContainsKey("file_path"))
-                {
-                    return new FileOperationResult
-                    {
-                        Success = false,
-                        Error = "缺少必要参数 file_path"
-                    };
-                }
-
-                string filePath = args["file_path"];
-                string content = args.ContainsKey("content") ? args["content"] : string.Empty;
-                string encodingName = args.ContainsKey("encoding") ? args["encoding"] : "UTF-8";
-
-                // 修改：使用 mode 参数替代 append
-                // create: 仅创建新文件（文件存在则失败）
-                // overwrite: 覆盖文件（文件存在则覆盖）
-                // append: 追加到文件末尾
-                string mode = args.ContainsKey("mode") ? args["mode"].ToLower() : "create";
-
-                return await WriteFileInternalAsync(filePath, content, encodingName, mode).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"参数解析失败: {ex.Message}"
-                };
-            }
-        }
-
-
-        // 同步方法用于兼容性
-        public FileOperationResult CreateFile(string arguments)
-        {
-            return CreateFileAsync(arguments).GetAwaiter().GetResult();
-        }
-
-        public FileOperationResult DeleteFile(string arguments)
-        {
-            return DeleteFileAsync(arguments).GetAwaiter().GetResult();
-        }
-
-        public FileReadResult ReadFile(string arguments)
-        {
-            return ReadFileAsync(arguments).GetAwaiter().GetResult();
-        }
-
-        public FileOperationResult WriteFile(string arguments)
-        {
-            return WriteFileAsync(arguments).GetAwaiter().GetResult();
-        }
-
-        private async Task<FileOperationResult> CreateFileInternalAsync(string filePath, string content, bool overwrite)
+        private async Task<string> CreateFileInternalAsync(string filePath, string content, bool overwrite)
         {
             try
             {
                 if (File.Exists(filePath) && !overwrite)
                 {
-                    return new FileOperationResult
-                    {
-                        Success = false,
-                        Error = $"文件已存在: {filePath}，如需覆盖请设置 overwrite=true"
-                    };
+                    return $"文件已存在: {filePath}，如需覆盖请设置 overwrite=true";
                 }
 
                 // 确保目录存在
@@ -490,64 +526,59 @@ namespace DeepSeekChat.Services
                     Directory.CreateDirectory(directory);
                 }
 
-                await File.WriteAllTextAsync(filePath, content, Encoding.UTF8).ConfigureAwait(false);
+                // 创建一个不带 BOM 的 UTF8 编码
+                var utf8WithoutBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+                await File.WriteAllTextAsync(filePath, content, utf8WithoutBom).ConfigureAwait(false);
 
                 var fileInfo = new FileInfo(filePath);
-                return new FileOperationResult
-                {
-                    Success = true,
-                    Message = $"文件创建成功: {filePath}",
-                    FilePath = filePath,
-                    FileSize = fileInfo.Length,
-                    CreatedTime = fileInfo.CreationTime,
-                    LastModified = fileInfo.LastWriteTime
-                };
+                return $"文件创建成功: {filePath}";
             }
             catch (UnauthorizedAccessException)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"无权创建文件: {filePath}"
-                };
+                return $"无权创建文件: {filePath}";
             }
             catch (PathTooLongException)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"路径过长: {filePath}"
-                };
+                return $"路径过长: {filePath}";
             }
             catch (IOException ex)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"文件操作失败: {ex.Message}"
-                };
+                return $"文件操作失败: {ex.Message}";
             }
             catch (Exception ex)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"创建文件失败: {ex.Message}"
-                };
+                return $"创建文件失败: {ex.Message}";
             }
         }
 
-        private async Task<FileOperationResult> DeleteFileInternalAsync(string filePath)
+        /// <summary>
+        /// 删除文件
+        /// </summary>
+        public async Task<string> DeleteFileAsync(Dictionary<string, object> args)
+        {
+            try
+            {
+                if (args == null || !args.ContainsKey("file_path"))
+                {
+                    return  "缺少必要参数 file_path";
+                }
+
+                string filePath = args["file_path"].ToString();
+                return await DeleteFileInternalAsync(filePath).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return  $"参数解析失败: {ex.Message}";
+            }
+        }
+
+        private async Task<string> DeleteFileInternalAsync(string filePath)
         {
             try
             {
                 if (!File.Exists(filePath))
                 {
-                    return new FileOperationResult
-                    {
-                        Success = false,
-                        Error = $"文件不存在: {filePath}"
-                    };
+                    return $"文件不存在: {filePath}";
                 }
 
                 var fileInfo = new FileInfo(filePath);
@@ -561,53 +592,54 @@ namespace DeepSeekChat.Services
 
                 await Task.Run(() => File.Delete(filePath)).ConfigureAwait(false);
 
-                return new FileOperationResult
-                {
-                    Success = true,
-                    Message = $"文件删除成功: {filePath}",
-                    FilePath = info.Path,
-                    FileSize = info.Size,
-                    CreatedTime = info.Created,
-                    LastModified = info.LastModified
-                };
+                return $"文件删除成功: {filePath}";
             }
             catch (UnauthorizedAccessException)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"无权删除文件: {filePath}"
-                };
+                return $"无权删除文件: {filePath}";
             }
             catch (IOException ex)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"文件操作失败: {ex.Message}，文件可能正在被使用"
-                };
+                return $"文件操作失败: {ex.Message}，文件可能正在被使用";
             }
             catch (Exception ex)
             {
-                return new FileOperationResult
-                {
-                    Success = false,
-                    Error = $"删除文件失败: {ex.Message}"
-                };
+                return $"删除文件失败: {ex.Message}";
             }
         }
 
-        private async Task<FileReadResult> ReadFileInternalAsync(string filePath, string encodingName, long maxSize)
+        /// <summary>
+        /// 读取文件内容
+        /// </summary>
+        public async Task<string> ReadFileAsync(Dictionary<string,object> args)
+        {
+            try
+            {
+                if (args == null || !args.ContainsKey("file_path"))
+                {
+                    return "缺少必要参数 file_path";
+                }
+
+                string filePath = args["file_path"].ToString();
+                string encodingName = args.ContainsKey("encoding") ? args["encoding"].ToString() : "UTF-8";
+                long maxSize = args.ContainsKey("max_size_bytes") &&
+                              long.TryParse(args["max_size_bytes"].ToString(), out long max) ? max : 10 * 1024 * 1024; // 默认10MB
+
+                return await ReadFileInternalAsync(filePath, encodingName, maxSize).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return $"参数解析失败: {ex.Message}";
+            }
+        }
+
+        private async Task<string> ReadFileInternalAsync(string filePath, string encodingName, long maxSize)
         {
             try
             {
                 if (!File.Exists(filePath))
                 {
-                    return new FileReadResult
-                    {
-                        Success = false,
-                        Error = $"文件不存在: {filePath}"
-                    };
+                    return $"文件不存在: {filePath}";
                 }
 
                 var fileInfo = new FileInfo(filePath);
@@ -615,22 +647,14 @@ namespace DeepSeekChat.Services
                 // 检查文件大小
                 if (fileInfo.Length > maxSize)
                 {
-                    return new FileReadResult
-                    {
-                        Success = false,
-                        Error = $"文件过大 ({FormatFileSize(fileInfo.Length)})，超过限制 {FormatFileSize(maxSize)}"
-                    };
+                    return $"文件过大 ({FormatFileSize(fileInfo.Length)})，超过限制 {FormatFileSize(maxSize)}";
                 }
 
                 // 获取编码
                 Encoding encoding = GetEncoding(encodingName);
                 if (encoding == null)
                 {
-                    return new FileReadResult
-                    {
-                        Success = false,
-                        Error = $"不支持的编码格式: {encodingName}"
-                    };
+                    return $"不支持的编码格式: {encodingName}";
                 }
 
                 // 读取文件内容
@@ -645,52 +669,73 @@ namespace DeepSeekChat.Services
                     content = await File.ReadAllTextAsync(filePath, Encoding.Default).ConfigureAwait(false);
                 }
 
-                return new FileReadResult
-                {
-                    Success = true,
-                    FilePath = fileInfo.FullName,
-                    Content = content,
-                    FileSize = fileInfo.Length,
-                    FileSizeReadable = FormatFileSize(fileInfo.Length),
-                    Encoding = encoding.EncodingName,
-                    CreatedTime = fileInfo.CreationTime,
-                    LastModified = fileInfo.LastWriteTime,
-                    LastAccessed = fileInfo.LastAccessTime
-                };
+                string result = $@"文件信息:
+                                文件路径: {fileInfo.FullName}
+                                文件大小: {FormatFileSize(fileInfo.Length)} ({fileInfo.Length} 字节)
+                                编码格式: {encoding.EncodingName}
+                                创建时间: {fileInfo.CreationTime:yyyy-MM-dd HH:mm:ss}
+                                修改时间: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}
+                                访问时间: {fileInfo.LastAccessTime:yyyy-MM-dd HH:mm:ss}
+                                文件内容:
+                                {content}";
+                return result;
             }
             catch (UnauthorizedAccessException)
             {
-                return new FileReadResult
-                {
-                    Success = false,
-                    Error = $"无权读取文件: {filePath}"
-                };
+                return $"无权读取文件: {filePath}";
             }
             catch (PathTooLongException)
             {
-                return new FileReadResult
-                {
-                    Success = false,
-                    Error = $"路径过长: {filePath}"
-                };
+                return $"路径过长: {filePath}";
             }
             catch (IOException ex)
             {
-                return new FileReadResult
-                {
-                    Success = false,
-                    Error = $"文件操作失败: {ex.Message}"
-                };
+                return $"文件操作失败: {ex.Message}";
             }
             catch (Exception ex)
             {
-                return new FileReadResult
+                return $"读取文件失败: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 写入文件内容
+        /// </summary>
+        public async Task<FileOperationResult> WriteFileAsync(Dictionary<string,object> args)
+        {
+            try
+            {
+                if (args == null || !args.ContainsKey("file_path"))
+                {
+                    return new FileOperationResult
+                    {
+                        Success = false,
+                        Error = "缺少必要参数 file_path"
+                    };
+                }
+
+                string filePath = args["file_path"].ToString();
+                string content = args.ContainsKey("content") ? args["content"].ToString() : string.Empty;
+                string encodingName = args.ContainsKey("encoding") ? args["encoding"].ToString() : "UTF-8";
+
+                // 修改：使用 mode 参数替代 append
+                // create: 仅创建新文件（文件存在则失败）
+                // overwrite: 覆盖文件（文件存在则覆盖）
+                // append: 追加到文件末尾
+                string mode = args.ContainsKey("mode") ? args["mode"].ToString().ToLower() : "create";
+
+                return await WriteFileInternalAsync(filePath, content, encodingName, mode).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return new FileOperationResult
                 {
                     Success = false,
-                    Error = $"读取文件失败: {ex.Message}"
+                    Error = $"参数解析失败: {ex.Message}"
                 };
             }
         }
+
 
         private async Task<FileOperationResult> WriteFileInternalAsync(string filePath, string content, string encodingName, string mode)
         {
@@ -780,62 +825,6 @@ namespace DeepSeekChat.Services
                     Success = false,
                     Error = $"写入文件失败: {ex.Message}"
                 };
-            }
-        }
-        public async Task<string> GetFolderStructureDescription(string folderPath)
-        {
-            try
-            {
-                // 正确创建 JSON 参数
-                var parameters = new Dictionary<string, object>
-                {
-                    ["folder_path"] = folderPath,
-                    ["include_subdirectories"] = true
-                };
-
-                // 序列化为 JSON
-                string arguments = JsonConvert.SerializeObject(parameters);
-
-                var toolResult = await BrowseLocalFolderAsync(arguments);
-
-                // 转换为BrowseFolderResult对象
-                var browseResult = JsonConvert.DeserializeObject<BrowseFolderResult>(
-                    JsonConvert.SerializeObject(toolResult));
-
-                if (browseResult == null)
-                    return "无法解析文件夹信息";
-
-                // 构建描述
-                var structureBuilder = new StringBuilder();
-                structureBuilder.AppendLine($"当前工作目录: {browseResult.FolderPath}");
-
-                if (!string.IsNullOrEmpty(browseResult.Info))
-                {
-                    structureBuilder.AppendLine($"{browseResult.Info}");
-
-                    return structureBuilder.ToString();
-                }
-
-                // 构建树形结构显示
-                structureBuilder.AppendLine("\n文件夹结构:");
-
-                // 获取根目录信息
-                var rootDir = new DirectoryInfo(folderPath);
-
-                // 构建目录树
-                BuildDirectoryTree(structureBuilder, rootDir, "", true, browseResult);
-
-                // 如果有备注信息
-                if (!string.IsNullOrEmpty(browseResult.Note))
-                {
-                    structureBuilder.AppendLine($"\n 备注: {browseResult.Note}");
-                }
-
-                return structureBuilder.ToString();
-            }
-            catch (Exception ex)
-            {
-                return $" 获取文件夹结构时出错: {ex.Message}";
             }
         }
 

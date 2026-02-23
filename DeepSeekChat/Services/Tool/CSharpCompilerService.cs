@@ -19,12 +19,10 @@ namespace DeepSeekChat.Services
         /// <summary>
         /// 编译C#程序并返回结果
         /// </summary>
-        public CompileResult CompileCSharpProgram(string arguments)
+        public CompileResult CompileCSharpProgram(Dictionary<string, object> args)
         {
             try
             {
-                // 解析参数
-                var args = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(arguments);
 
                 if (args == null || !args.ContainsKey("code"))
                 {
@@ -36,9 +34,9 @@ namespace DeepSeekChat.Services
                     };
                 }
 
-                string code = args["code"];
-                string outputPath = args.ContainsKey("output_path") ? args["output_path"] : null;
-                bool execute = args.ContainsKey("execute") && bool.TryParse(args["execute"], out bool exec) && exec;
+                string code = args["code"].ToString();
+                string outputPath = args.ContainsKey("output_path") ? args["output_path"].ToString() : null;
+                bool execute = args.ContainsKey("execute") && bool.TryParse(args["execute"].ToString(), out bool exec) && exec;
 
                 return CompileAndExecute(code, outputPath, execute);
             }
@@ -56,7 +54,7 @@ namespace DeepSeekChat.Services
         /// <summary>
         /// 异步编译版本
         /// </summary>
-        public async Task<CompileResult> CompileCSharpProgramAsync(string arguments)
+        public async Task<CompileResult> CompileCSharpProgramAsync(Dictionary<string, object> arguments)
         {
             return await Task.Run(() => CompileCSharpProgram(arguments)).ConfigureAwait(false);
         }

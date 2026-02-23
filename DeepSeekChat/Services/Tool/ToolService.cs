@@ -11,27 +11,21 @@ namespace DeepSeekChat.Services
 {
     public class ToolService : IToolService
     {
-        private readonly WeatherService _weatherService;
         private readonly FileSystemService _fileSystemService;
         private readonly CSharpCompilerService _compilerService;
-        private readonly CreateTaskService _createTaskService;
-        private readonly HandleUserNeedsService _handleUserNeedsService;
+        private readonly CommandExecService _commandExecService;
 
         public ToolService(InMemoryMessageBus msgBus)
         {
-            _weatherService = new WeatherService();
             _fileSystemService = new FileSystemService();
             _compilerService = new CSharpCompilerService();
-            _createTaskService = new CreateTaskService(msgBus);
-            _handleUserNeedsService = new HandleUserNeedsService(msgBus);
+            _commandExecService = new CommandExecService();
         }
 
-        public async Task<object> ExecuteToolAsync(string toolName, string arguments)
+        public async Task<object> ExecuteToolAsync(string toolName, Dictionary<string, object> arguments)
         {
             return toolName switch
             {
-                "get_weather" => _weatherService.GetWeather(arguments),
-
                 "browse_local_folder" => await _fileSystemService.BrowseLocalFolderAsync(arguments).ConfigureAwait(false),
                 "get_folder_info" => await _fileSystemService.GetFolderInfoAsync(arguments).ConfigureAwait(false),
                 "create_file" => await _fileSystemService.CreateFileAsync(arguments).ConfigureAwait(false),
@@ -45,19 +39,14 @@ namespace DeepSeekChat.Services
                 "compile_csharp" => await _compilerService.CompileCSharpProgramAsync(arguments).ConfigureAwait(false),
                 "compile_and_execute" => await _compilerService.CompileCSharpProgramAsync(arguments).ConfigureAwait(false),
 
-
-                // 分配任务工具
-                "distribute_coding_tasks" => await _createTaskService.DistributeCodingTasksAsync(arguments).ConfigureAwait(false),
-
-
-                "send_to_agent" => await _handleUserNeedsService.HandleUserNeedsAsync(arguments).ConfigureAwait(false),
+                "execute_command" => await _commandExecService.ExecuteCommandAsync(arguments).ConfigureAwait(false),
 
                 _ => throw new NotSupportedException($"工具 '{toolName}' 不支持")
             };
         }
 
         // 同步方法用于兼容性
-        public object ExecuteTool(string toolName, string arguments)
+        public object ExecuteTool(string toolName, Dictionary<string, object> arguments)
         {
             return ExecuteToolAsync(toolName, arguments).GetAwaiter().GetResult();
         }

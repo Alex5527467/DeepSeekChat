@@ -1,7 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public interface IToolService
 {
-    Task<object> ExecuteToolAsync(string toolName, string arguments);
-    object ExecuteTool(string toolName, string arguments);
+    Task<object> ExecuteToolAsync(string toolName, Dictionary<string, object> arguments);
+    object ExecuteTool(string toolName, Dictionary<string, object> arguments);
 }
