@@ -24,21 +24,20 @@ namespace DeepSeekChat.ViewModels
 {
     public class MainViewModel : BaseViewModel
     {
-        private readonly ChatService _chatService;
         private readonly ToolService _toolService;
         private readonly ToolApiService _toolApiService;
-        private readonly IAgentWindowService _agentWindowService;
         private readonly InMemoryMessageBus _messageBus;
         private readonly List<ChatMessage> _conversationHistory = new();
 
         private string _inputText;
         private bool _isLoading;
         private ObservableCollection<MessageItem> _messages;
-        private Dictionary<string, Agent.Agent> _activeAgents = new();
+        private Dictionary<string, BaseAgent> _activeAgents = new();
 
         private readonly IConfiguration _configuration;
         private SettingsViewModel _settingsViewModel;
         private Window _settingsWindow;
+
 
         public string InputText
         {
@@ -115,17 +114,13 @@ namespace DeepSeekChat.ViewModels
         public ICommand ShowInExplorerCommand { get; }
 
         public MainViewModel(
-            ChatService chatService,
             ToolService toolService,
             InMemoryMessageBus msgBus,
             ToolApiService toolApiService,
-            IAgentWindowService agentWindowService,
             IConfiguration configuration)
         {
-            _chatService = chatService;
             _toolService = toolService;
             _toolApiService = toolApiService;
-            _agentWindowService = agentWindowService;
             _messageBus = msgBus;
             _configuration = configuration;
 
@@ -145,10 +140,6 @@ namespace DeepSeekChat.ViewModels
                             );
             ClearCommand = new RelayCommand<string>(_ => ClearConversation(), _ => true);
 
-            // Agent启动命令
-            StartDesignAgentCommand = new RelayCommand<string>(_ => StartAgent("DesignAgent", "设计专家"), _ => true);
-            StartCodingAgentCommand = new RelayCommand<string>(_ => StartAgent("CodingAgent", "编程专家"), _ => true);
-            StartTaskCreateAgentCommand = new RelayCommand<string>(_ => StartAgent("TaskCreateAgent", "任务分配者"), _ => true);
             ToggleMessageCommand = new RelayCommand<MessageItem>(message =>
             {
                 if (message != null)
@@ -440,107 +431,38 @@ namespace DeepSeekChat.ViewModels
             // 等待UI初始化完成
             await Task.Delay(1000);
 
-            StartAgent("UserIntentAnalysisAgent", "用户目的分析师");
-            StartAgent("RequirementAnalysisAgent", "需求分析师");
-            StartAgent("DesignAgent", "设计专家");
-            StartAgent("TaskCreateAgent", "任务分配者");
-            StartAgent("CodingAgent", "编程专家");
-            StartAgent("ReviewAgent", "代码审查员");
-            StartAgent("ReviewHandleAgent", "代码审查对应者");
+            // 或者动态加载
+            var configFiles = Directory.EnumerateFiles("Configs\\Agents", "*.json", SearchOption.AllDirectories);
+            foreach (var configFile in configFiles)
+            {
+                var agent = AgentFactory.CreateAgent(
+                    configFile,
+                    _messageBus,
+                    _toolApiService,
+                    _toolService
+                );
+                // 保存Agent引用
+                _activeAgents[agent.Name] = agent;
+            }
+
+            StartConfigAgents();
 
         }
 
-        private async void StartAgent(string agentType, string displayName)
+        private async void StartConfigAgents()
         {
-            try
+            foreach (var configAgent in _activeAgents)
             {
-                // 检查是否已经启动
-                if (_agentWindowService != null && _agentWindowService.IsAgentWindowOpen(agentType))
-                {
-                    AddMessageToUI("系统", $"{displayName}窗口已经打开",
-                        Color.FromRgb(50, 50, 0), // 暗黄色背景
-                        HorizontalAlignment.Left,
-                        Color.FromRgb(255, 204, 0)); // 亮黄色文字
-                    return;
-                }
+                await configAgent.Value.StartAsync();
 
-                Agent.Agent agent = null;
-
-                var cancellationTokenSource = new CancellationTokenSource();
-
-                switch (agentType)
-                {
-                    case "DesignAgent":
-                        agent = new DesignAgent(_messageBus, _chatService, cancellationTokenSource.Token);
-                        break;
-
-                    case "CodingAgent":
-                        agent = new CodingAgent(
-                            _messageBus,
-                            _toolService,
-                            _chatService,
-                            _toolApiService,
-                            _configuration,
-                            cancellationTokenSource.Token
-                        );
-                        break;
-
-                    case "TaskCreateAgent":
-                        agent = new TaskCreateAgent(
-                            _messageBus,
-                            _chatService,
-                            _toolApiService,
-                            _toolService,
-                            cancellationTokenSource.Token
-                        );
-                        break;
-
-                    case "RequirementAnalysisAgent":
-                        agent = new RequirementAnalysisAgent(_messageBus, _chatService, cancellationTokenSource.Token);
-                        break;
-
-                    case "UserIntentAnalysisAgent":
-                        agent = new UserIntentAnalysisAgent(_messageBus, _toolApiService, _toolService, cancellationTokenSource.Token);
-                        break;
-                    case "ReviewAgent":
-                        agent = new ReviewAgent(_messageBus, _chatService, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
-                        break;
-                    case "ReviewHandleAgent":
-                        agent = new ReviewHandleAgent(_messageBus, _chatService, _toolApiService, _toolService, _configuration, cancellationTokenSource.Token);
-                        break;
-                }
-
-                if (agent != null)
-                {
-                    // 启动Agent
-                    await agent.StartAsync();
-
-                    // 保存Agent引用
-                    _activeAgents[agentType] = agent;
-
-                    AddMessageToUI("系统", $"{displayName}已启动",
-                        Color.FromRgb(0, 50, 0), // 暗绿色背景
-                        HorizontalAlignment.Left,
-                        Color.FromRgb(0, 255, 128)); // 青色文字
-                }
-            }
-            catch (Exception ex)
-            {
-                AddMessageToUI("系统", $"启动{displayName}失败: {ex.Message}",
-                    Color.FromRgb(50, 0, 0), // 暗红色背景
-                    HorizontalAlignment.Left,
-                    Color.FromRgb(255, 102, 102)); // 亮红色文字
+                AddMessageToUI("系统", $"{configAgent.Value.GetAgentConfig().Description}已启动",
+                      Color.FromRgb(0, 50, 0), // 暗绿色背景
+                      HorizontalAlignment.Left,
+                      Color.FromRgb(0, 255, 128)); // 青色文字
             }
         }
 
-        private async Task ShowAgentDirectly(string agentType, string displayName, Agent.Agent agent)
-        {
-            // 简单方式：在主窗口中显示Agent状态
-            AddMessageToUI(displayName, "Agent已启动，等待任务...",
-                GetAgentBackgroundColor(agentType),
-                HorizontalAlignment.Left,
-                GetAgentSenderColor(agentType));
-        }
+  
 
         private void SubscribeToMessageBus()
         {
@@ -605,62 +527,39 @@ namespace DeepSeekChat.ViewModels
 
         private async Task SendToActiveAgents(string userMessage)
         {
-            // 检查是否有正在进行的需求分析会话
-            var requirementAgent = _activeAgents.ContainsKey("RequirementAnalysisAgent")
-                ? _activeAgents["RequirementAnalysisAgent"]
-                : null;
-
-            var reviewAgent = _activeAgents.ContainsKey("ReviewAgent")
-                ? _activeAgents["ReviewAgent"]
-                : null;
-
-            var userNeedsAnalysisAgent = _activeAgents.ContainsKey("UserIntentAnalysisAgent")
-                ? _activeAgents["UserIntentAnalysisAgent"]
-                : null;
-
+            bool isHaveAcitveSession = false;
             AgentMessage? agentMessage = null;
 
-            if (requirementAgent != null && requirementAgent is RequirementAnalysisAgent reqAgent && !string.IsNullOrEmpty(reqAgent.GetFirstSessionId()))
+            foreach (var activeAgent in _activeAgents)
             {
-                // 检查是否有活跃的需求分析会话
-                string sessionId = reqAgent.GetFirstSessionId();
-                agentMessage = new AgentMessage
+                if(activeAgent.Value.HasActiveSessions())
                 {
-                    Sender = "User",
-                    Recipient = "RequirementAnalysisAgent",
-                    Content = userMessage,
-                    Type = AgentMessageType.TaskRequest
-                };
+                    isHaveAcitveSession = true;
 
-                agentMessage.Metadata = new Dictionary<string, object>
-                {
-                    { "SessionId", sessionId },
-                };
+                    agentMessage = new AgentMessage
+                    {
+                        Sender = "User",
+                        Recipient = activeAgent.Key,
+                        Content = userMessage,
+                        Type = AgentMessageType.TaskRequest
+                    };
+                    string sessionId = activeAgent.Value.GetActiveSessionIds().FirstOrDefault();
+                    agentMessage.Metadata = new Dictionary<string, object>
+                    {
+                        { "SessionId", sessionId },
+                    };
 
+                    break;
+                }
             }
-            else if(reviewAgent != null && reviewAgent is ReviewAgent revAgent && !string.IsNullOrEmpty(revAgent.GetFirstSessionId()))
-            {
-                // 检查是否有活跃的需求分析会话
-                string sessionId = revAgent.GetFirstSessionId();
-                agentMessage = new AgentMessage
-                {
-                    Sender = "User",
-                    Recipient = "ReviewAgent",
-                    Content = userMessage,
-                    Type = AgentMessageType.TaskRequest
-                };
 
-                agentMessage.Metadata = new Dictionary<string, object>
-                {
-                    { "SessionId", sessionId },
-                };
-            }
-            else if (userNeedsAnalysisAgent != null && userNeedsAnalysisAgent is UserIntentAnalysisAgent needsAgent)
+            if(isHaveAcitveSession == false)
             {
+                var firstAgent =_activeAgents.FirstOrDefault(x => x.Value.GetAgentConfig().IsFirst == true);
                 agentMessage = new AgentMessage
                 {
                     Sender = "User",
-                    Recipient = "UserIntentAnalysisAgent",
+                    Recipient = firstAgent.Key,
                     Content = userMessage,
                     Type = AgentMessageType.TaskRequest
                 };
@@ -674,7 +573,7 @@ namespace DeepSeekChat.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    AddMessageToUI("RequirementAnalysisAgent", $"处理失败: {ex.Message}",
+                    AddMessageToUI("UserIntentAnalysisAgent", $"处理失败: {ex.Message}",
                         Color.FromRgb(50, 0, 0),
                         HorizontalAlignment.Left,
                         Color.FromRgb(255, 102, 102));
@@ -687,9 +586,6 @@ namespace DeepSeekChat.ViewModels
         {
             return agentType switch
             {
-                "DesignAgent" => Color.FromRgb(40, 40, 60),   // 深蓝紫色背景
-                "CodingAgent" => Color.FromRgb(40, 60, 40),   // 深绿色背景
-                "TaskCreateAgent" => Color.FromRgb(60, 50, 40), // 深棕色背景
                 "User" => Color.FromRgb(30, 30, 60),          // 用户消息背景
                 "系统" => Color.FromRgb(30, 30, 30),           // 系统消息背景
                 _ => Color.FromRgb(40, 40, 40)                // 默认深灰色背景
@@ -700,9 +596,6 @@ namespace DeepSeekChat.ViewModels
         {
             return agentType switch
             {
-                "DesignAgent" => Color.FromRgb(187, 134, 252), // 紫色
-                "CodingAgent" => Color.FromRgb(3, 218, 198),   // 青色
-                "TaskCreateAgent" => Color.FromRgb(255, 167, 38), // 橙色
                 "User" => Color.FromRgb(187, 134, 252),        // 紫色（与DesignAgent一致）
                 "系统" => Color.FromRgb(255, 255, 255),         // 白色
                 _ => Color.FromRgb(255, 255, 255)              // 白色（默认）

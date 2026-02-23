@@ -17,8 +17,8 @@ namespace DeepSeekChat.ViewModels
         private readonly IConfiguration _configuration;
 
         private string _apiKey;
-        private string _apiBaseUrl = "https://api.deepseek.com/chat/";
-        private string _modelName = "completions";
+        private string _apiBaseUrl = "https://api.deepseek.com/chat/completions";
+        private string _modelName = "";
         private int _maxTokens = 4000;
         private double _temperature = 0.7;
         private string _projectPath = string.Empty;
