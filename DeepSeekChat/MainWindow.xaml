@@ -640,7 +640,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- 标题居中 -->
-                    <TextBlock Text="C#代码生成工具" 
+                    <TextBlock Text="代码生成工具" 
                                Grid.Column="0"
                                Foreground="{StaticResource PrimaryBrush}" 
                                FontSize="16"
@@ -661,49 +661,6 @@
                     </Button>
                 </Grid>
             </Border>
-
-            <!-- Agent控制栏 -->
-            <!--<Border Grid.Row="1" Background="#1A1A1A" BorderThickness="0,0,0,1" BorderBrush="{StaticResource BorderColor}">
-                <StackPanel Orientation="Horizontal" Margin="10,8">
-                    <TextBlock Text="Agent控制:" 
-                               VerticalAlignment="Center" 
-                               Margin="0,0,10,0"
-                               Foreground="{StaticResource TextSecondary}"/>
-                    <Button Content="启动设计专家" 
-                            Command="{Binding StartDesignAgentCommand}"
-                            Margin="5,0"
-                            Style="{StaticResource DarkButtonStyle}"
-                            Background="#4CAF50">
-                        <Button.Resources>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                    <Button Content="启动编程专家" 
-                            Command="{Binding StartCodingAgentCommand}"
-                            Margin="5,0"
-                            Style="{StaticResource DarkButtonStyle}"
-                            Background="#2196F3">
-                        <Button.Resources>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                    <Button Content="启动任务分配者" 
-                            Command="{Binding StartTaskCreateAgentCommand}"
-                            Margin="5,0"
-                            Style="{StaticResource DarkButtonStyle}"
-                            Background="#FF9800">
-                        <Button.Resources>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
-            </Border>-->
 
             <!-- 消息区域 -->
             <ScrollViewer Grid.Row="2" 

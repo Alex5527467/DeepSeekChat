@@ -32,16 +32,13 @@ namespace DeepSeekChat
             // 配置依赖注入
             string apiKey = configuration["DeepSeekSettings:ApiKey"];
 
-            var apiService = new ChatService(apiKey);
             var msgBus = new InMemoryMessageBus();
             var toolService = new ToolService(msgBus);
             var toolApiService = new ToolApiService(apiKey);
-            var windowService = new AgentWindowService();
-            var mainViewModel = new MainViewModel(apiService, 
+            var mainViewModel = new MainViewModel(
                 toolService, 
                 msgBus, 
                 toolApiService, 
-                windowService,
                 configuration);
 
             var mainWindow = new MainWindow
