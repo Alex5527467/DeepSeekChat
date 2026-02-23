@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DeepSeekChat.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,7 +18,8 @@ namespace DeepSeekChat.Agent
         CodingRequest,
         CoordinationRequest,
         CoordinationResponse,
-        FolderRefresh
+        FolderRefresh,
+        Response
     }
 
     public abstract class Agent
@@ -36,7 +38,7 @@ namespace DeepSeekChat.Agent
             _cancellationToken = cancellationToken;
         }
 
-        public abstract Task<AgentResponse> ProcessAsync(AgentMessage message);
+        public abstract Task<ToolCallResponse> ProcessAsync(AgentMessage message);
         public abstract Task StartAsync();
         public abstract Task StopAsync();
 
@@ -61,25 +63,5 @@ namespace DeepSeekChat.Agent
         }
     }
 
-    public class AgentMessage
-    {
-        public string Id { get; } = Guid.NewGuid().ToString();
-        public required string Sender { get; set; }
-        public required string Recipient { get; set; }
-        public required string Content { get; set; }
-        public AgentMessageType Type { get; set; }
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
-        public Dictionary<string, object> Metadata { get; set; } = new();
-    }
 
-    public class AgentResponse
-    {
-        public string SessionId { get; set; }
-        public bool Success { get; set; }
-        public string Content { get; set; }
-        public string NextAgent { get; set; }
-        public Dictionary<string, object> Metadata { get; set; } = new();
-
-        public bool IsComplete;
-    }
 }
