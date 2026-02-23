@@ -66,11 +66,29 @@ namespace DeepSeekChat.Models
 
     public class FunctionCall
     {
+
         [JsonProperty("name")]
         public string Name { get; set; }
 
         [JsonProperty("arguments")]
         public string Arguments { get; set; }
+
+        [JsonIgnore]
+        public Dictionary<string, object> ArgumentsObject
+        {
+            get
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<Dictionary<string, object>>(Arguments);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
     }
 
     public class ChatRequest
