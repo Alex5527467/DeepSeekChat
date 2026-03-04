@@ -2,7 +2,7 @@
   "SmtpServer": "smtp.163.com",
   "SmtpPort": 465,
   "SenderEmail": "xinchen296@163.com",
-  "SenderPassword": "YRw5R34KyY3SPMCj",
+  "SenderPassword": "XXX",
   "EnableSsl": true,
   "SenderName": "邮件发送系统"
 }
