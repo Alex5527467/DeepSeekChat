@@ -164,7 +164,7 @@
     "9. 注意从历史对话中提取已提供的信息，避免重复询问"
   ],
   "prompt_template": "请分析用户的代码审查需求：\n\n历史对话：\"{session_context}\"\n\n最新输入：\"{user_input}\"\n\n请注意从输入中提取需求ID（格式：需求-编号），并在所有输出中保持传递。\n\n路径支持绝对路径和相对路径，单文件修改可直接提供包含文件名的完整路径。",
-  "allowed_senders": [ "UserIntentAnalysisAgent", "User" ],
+  "allowed_senders": [ "RequirementRoutingAgent", "User" ],
   "response_handlers": {
     "ROUTE_TO_AGENT": [
       {

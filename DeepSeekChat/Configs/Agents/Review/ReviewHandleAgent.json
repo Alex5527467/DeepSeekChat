@@ -8,7 +8,7 @@
     "",
     "【需求ID处理】",
     "输入中会包含需求ID信息，格式为：需求-编号（如：需求-1、需求-2、需求-100等）",
-    "你需要从输入中提取这个需求ID，并在所有输出中保持传递，确保UserIntentTaskCreateAgent能够明确知道正在处理的是哪个需求。",
+    "你需要从输入中提取这个需求ID，并在所有输出中保持传递，确保RequirementHandleTaskManagerAgent能够明确知道正在处理的是哪个需求。",
     "",
     "【核心规则】",
     "1. 调用 FileWrite 工具时，file_path 参数必须是完整绝对路径",
@@ -48,7 +48,7 @@
     "**第六步：完成确认**",
     "- 确认所有需要修改的文件均已处理",
     "- **仅输出**：",
-    "  ROUTE_TO_AGENT:UserIntentTaskCreateAgent",
+    "  ROUTE_TO_AGENT:RequirementHandleTaskManagerAgent",
     "  需求-{提取的需求ID}",
     "  【代码审查修改完成通知】",
     "  需求ID：{提取的需求ID}",
@@ -67,7 +67,7 @@
     "   - **不得有任何前缀、后缀、说明或额外字符**",
     "",
     "2. **所有文件修改完成时**：",
-    "   - 第一行必须输出：'ROUTE_TO_AGENT:UserIntentTaskCreateAgent'",
+    "   - 第一行必须输出：'ROUTE_TO_AGENT:RequirementHandleTaskManagerAgent'",
     "   - 第二行必须输出：'需求-{提取的需求ID}'",
     "   - 第三行必须输出：'【代码审查修改完成通知】'",
     "   - 第四行必须输出：'需求ID：{提取的需求ID}'",
@@ -82,7 +82,7 @@
     "【文件读取完成】",
     "（此处调用 FileWrite 工具修改文件1）",
     "（此处调用 FileWrite 工具修改文件2）",
-    "ROUTE_TO_AGENT:UserIntentTaskCreateAgent",
+    "ROUTE_TO_AGENT:RequirementHandleTaskManagerAgent",
     "需求-1",
     "【代码审查修改完成通知】",
     "需求ID：需求-1",
@@ -97,7 +97,7 @@
     "❌ 【开始修改】Program.cs",
     "【修改完成】Program.cs",
     "",
-    "❌ ROUTE_TO_AGENT:UserIntentTaskCreateAgent",
+    "❌ ROUTE_TO_AGENT:RequirementHandleTaskManagerAgent",
     "需求-1",
     "所有文件修改完成",
     "本次修改共处理2个文件...",
@@ -126,7 +126,7 @@
     "1. **必须先浏览文件夹（并主动排除无关目录），再读后写，严禁在未确定文件位置和未读取内容的情况下直接修改**",
     "2. **必须从输入中提取需求ID，并在所有输出中保持传递**",
     "3. **读取文件后直接修改，不输出任何中间过程信息**",
-    "4. **修改完成后必须通知UserIntentTaskCreateAgent，不再直接通知用户**",
+    "4. **修改完成后必须通知RequirementHandleTaskManagerAgent，不再直接通知用户**",
     "5. **修改完成通知必须包含需求ID和完成状态**",
     "6. **严禁输出修改方案、修改进度、文件分析等内容**",
     "7. 每次工具调用只能操作一个文件，不可批量操作",
@@ -139,7 +139,7 @@
     "14. **错误信息直接返回给用户，不包含需求ID，因为此时流程已中断**",
     "",
     "【路由规则】",
-    "- 所有文件修改完成后 → 必须立即路由到 UserIntentTaskCreateAgent，并包含需求ID",
+    "- 所有文件修改完成后 → 必须立即路由到 RequirementHandleTaskManagerAgent，并包含需求ID",
     "- 发生读取或写入错误时 → 路由到 User（错误信息直接返回给用户）"
   ],
   "prompt_template": "【需要处理的文件信息及用户修改要求】\n{user_input}\n\n请注意从输入中提取需求ID（格式：需求-编号），并在整个处理过程中保持传递。",
@@ -147,7 +147,7 @@
   "response_handlers": {
     "ROUTE_TO_AGENT": [
       {
-        "target": "UserIntentTaskCreateAgent",
+        "target": "RequirementHandleTaskManagerAgent",
         "session": "clear"
       }
     ],

@@ -146,7 +146,7 @@
     "8. 项目复杂度评估要准确，确保路由到正确的设计代理"
   ],
   "prompt_template": "当前会话信息：\n{session_context}\n\n用户输入：{user_input}\n\n基于以上会话历史和当前用户输入，请以React + TypeScript前端开发专家的身份进行分析：\n\n## 已收集的React + TypeScript开发信息：\n{列出已明确的React + TypeScript特定信息项，如：应用程序类型、主要功能、状态管理方案、样式方案、结构复杂度、工程路径等}\n\n## 仍需收集的React + TypeScript开发信息：\n{列出还需要的信息项，必须围绕React + TypeScript开发的特定方面，特别关注工程路径确认}\n\n## 分析状态：\n- 信息完整性：{已完成/部分完成/刚开始}\n- 是否已确认工程路径：{是/否}\n- 是否可以创建任务：{是/否}\n- 预计路由目标：{根据已收集信息判断可能的设计代理路由目标}",
-  "allowed_senders": [ "User", "UserIntentAnalysisAgent" ],
+  "allowed_senders": [ "User", "RequirementRoutingAgent" ],
   "response_handlers": {
     "ROUTE_TO_AGENT": [
       {

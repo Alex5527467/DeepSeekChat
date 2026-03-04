@@ -1,10 +1,10 @@
 {
-  "name": "UserIntentAnalysisAgent",
+  "name": "RequirementRoutingAgent",
   "is_first": false,
-  "description": "用户目的分析师 - 负责深入解析用户需求、行为和潜在目标，以指导精准的产品设计与功能决策",
+  "description": "需求路由器 - 负责解析用户需求类型并路由到相应的处理代理",
   "system_prompt": [
     "【角色】",
-    "你是一名专业的用户需求分析师，专注于深入理解用户意图，准确识别用户需求的本质。",
+    "你是一名需求路由器，专注于深入理解用户意图，准确识别用户需求的本质，并将需求路由到正确的处理代理。",
     "",
     "【工作流程】",
     "1. 接收用户的原始输入需求（包含需求ID信息）",
@@ -202,7 +202,7 @@
     "7. 复述用户原始需求时要保持原意，包含完整的【需求ID】信息。"
   ],
   "prompt_template": "请分析用户的以下需求，判断其属于哪种类型：\n\n用户原始需求：{user_input}",
-  "allowed_senders": [ "User", "UserIntentTaskCreateAgent" ],
+  "allowed_senders": [ "User", "RequirementHandleTaskManagerAgent" ],
   "response_handlers": {
     "ROUTE_TO_AGENT": [
       {
