@@ -470,9 +470,30 @@ namespace DeepSeekChat.ViewModels
             var subscription = _messageBus.SubscribeAll().
                 Subscribe(message =>
                 {
-                    if(message.Sender == "CodingAgent" && message.Type == AgentMessageType.FolderRefresh)
+                    // 当收到某个Agent的消息时，将该Agent移到_activeAgers的第一位
+                    if (_activeAgents.ContainsKey(message.Sender) && message.Recipient == "User")
                     {
-                        RefreshProject();
+                        // 将字典转换为列表以便排序
+                        var orderedList = _activeAgents.ToList();
+
+                        // 找到当前发送消息的Agent的索引
+                        var index = orderedList.FindIndex(kvp => kvp.Key == message.Sender);
+
+                        if (index > 0)  // 如果不在第一位
+                        {
+                            // 获取要移动的项
+                            var item = orderedList[index];
+
+                            // 移除该项
+                            orderedList.RemoveAt(index);
+
+                            // 插入到列表开头
+                            orderedList.Insert(0, item);
+
+                            // 如果需要保持为Dictionary，可以重新创建（但Dictionary不保证顺序）
+                            // 或者使用 OrderedDictionary，或者使用List保持顺序
+                            _activeAgents = orderedList.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                        }
                     }
 
                     var backgroundColor = GetAgentBackgroundColor(message.Sender);
@@ -573,7 +594,7 @@ namespace DeepSeekChat.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    AddMessageToUI("UserIntentAnalysisAgent", $"处理失败: {ex.Message}",
+                    AddMessageToUI("RequirementRoutingAgent", $"处理失败: {ex.Message}",
                         Color.FromRgb(50, 0, 0),
                         HorizontalAlignment.Left,
                         Color.FromRgb(255, 102, 102));

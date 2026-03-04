@@ -144,8 +144,8 @@ namespace DeepSeekChat.ViewModels
         {
             // 读取 DeepSeekSettings 部分
             ApiKey = _configuration["DeepSeekSettings:ApiKey"] ?? "";
-            ApiBaseUrl = _configuration["DeepSeekSettings:ApiBaseUrl"] ?? "https://api.deepseek.com/chat/";
-            ModelName = _configuration["DeepSeekSettings:ModelName"] ?? "completions";
+            ApiBaseUrl = _configuration["DeepSeekSettings:ApiBaseUrl"] ?? "https://api.deepseek.com/chat/completions";
+            ModelName = _configuration["DeepSeekSettings:ModelName"] ?? "";
 
             if (int.TryParse(_configuration["DeepSeekSettings:MaxTokens"], out int maxTokens))
                 MaxTokens = maxTokens;

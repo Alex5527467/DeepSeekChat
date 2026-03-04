@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static DeepSeekChat.Services.ToolApiService;
 
@@ -33,7 +34,10 @@ namespace DeepSeekChat.Services
 
         public ToolApiService(string apiKey, string logFilePath = null)
         {
-            _httpClient = new HttpClient();
+            _httpClient = new HttpClient()
+            {
+                Timeout = TimeSpan.FromMinutes(10)
+            };
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
@@ -114,7 +118,9 @@ namespace DeepSeekChat.Services
             try
             {
                 LogInfo($"正在发送请求到 DeepSeek API: {ApiUrl}");
-                var response = await _httpClient.PostAsync(ApiUrl, content);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+                var response = await _httpClient.PostAsync(ApiUrl, content, cts.Token);
 
                 LogInfo($"收到API响应，状态码: {(int)response.StatusCode} {response.StatusCode}");
                 response.EnsureSuccessStatusCode();

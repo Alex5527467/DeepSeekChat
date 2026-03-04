@@ -42,6 +42,9 @@
     <None Update="Configs\Agents\CSharp\CSharpDesignForComplexWPFAgent.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+    <None Update="Configs\Agents\CSharp\CSharpDesignForMultiViewWPFAgent.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Configs\Agents\CSharp\CSharpDesignForSimpleConsoleAgent.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -72,14 +75,71 @@
     <None Update="Configs\Agents\CSharp\CSharpCodingTaskCreateAgent.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configs\Agents\UserIntent\UserIntentAnalysisAgent.json">
+    <None Update="Configs\Agents\Role\RoleCreationManagerAgent.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configs\Agents\UserIntent\UserIntentDecompositionAgent.json">
+    <None Update="Configs\Agents\Role\RoleCreatorAgent.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configs\Agents\UserIntent\UserIntentTaskCreateAgent.json">
+    <None Update="Configs\Agents\Role\RolePlannerAgent.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Agents\Requirement\RequirementRoutingAgent.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Agents\Requirement\RequirementAnalysisSchedulingAgent.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Agents\Requirement\RequirementHandleTaskManagerAgent.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\EmailSender\EmailSender.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\EmailSender\mail_config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\EmailSender\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\JsonFormatter\JsonFormatter.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\JsonFormatter\JsonFormatter.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\JsonFormatter\JsonFormatter.runtimeconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\JsonFormatter\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\D3DCompiler_47_cor3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\PenImc_cor3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\PresentationNative_cor3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\ScreenshotTool.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\vcruntime140_cor3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ScreenshotTool\wpfgfx_cor3.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ShiftJisToUtf8Converter\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Configs\Tools\ShiftJisToUtf8Converter\ShiftJisToUtf8Converter.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Configs\Tools\ToolsConfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
